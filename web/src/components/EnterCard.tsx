@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAccount, useChainId, useDisconnect } from 'wagmi'
 import useLotteryReads from '@/hooks/useLotteryReads'
 import { useEnterLottery } from '@/hooks/useLotteryWrites'
@@ -23,6 +23,8 @@ export default function EnterCard() {
     pendingRefundUserHBAR,
     refetch,
     roundId,
+    participantCount,
+    stageIndex,
   } = useLotteryReads()
   const chainId = useChainId()
   const { address } = useAccount()
@@ -78,6 +80,18 @@ export default function EnterCard() {
   const [amount, setAmount] = useState<string>('')
   const [submittingLocal, setSubmittingLocal] = useState<boolean>(false)
 
+  // Keep lightweight refs of latest snapshot values so we can detect when the server
+  // has reflected an entered transaction (fast server case).
+  const latestParticipantsRef = useRef<number | undefined>(participantCount)
+  const latestRemainingRef = useRef<number | undefined>(remainingHBAR)
+  const latestStageRef = useRef<number | undefined>(stageIndex)
+
+  useEffect(() => {
+    latestParticipantsRef.current = participantCount
+    latestRemainingRef.current = remainingHBAR
+    latestStageRef.current = stageIndex
+  }, [participantCount, remainingHBAR, stageIndex])
+
   const disableAll = submittingLocal || isPending || isConfirming
   const connected = isConnected && hookConnected
   const canSubmit =
@@ -98,12 +112,65 @@ export default function EnterCard() {
   const handleEnterClick = async () => {
     if (!canSubmit) return
     if (submittingLocal || isPending || isConfirming) return
+
+    // Snapshot pre-submit server-observed values
+    const preParticipants = latestParticipantsRef.current
+    const preRemaining = latestRemainingRef.current
+    const preStage = latestStageRef.current
+    console.debug('[enter.pre]', { preParticipants, preRemaining, preStage, amount })
+
     setSubmittingLocal(true)
     try {
       const txHash = await enter(amount)
-      // Do not wait on-chain from the UI; server fan-out will refresh shortly.
+      console.debug('[enter.txHash]', { txHash })
+
+      // On tx hash returned, refetch server snapshot once then poll briefly (bounded)
       if (txHash) {
-        await refetch()
+        try {
+          await refetch()
+          console.debug('[enter.refetch] completed')
+        } catch (e) {
+          console.debug('[enter.refetch] failed', e)
+        }
+
+        const start = Date.now()
+        const timeoutMs = 12000
+        const intervalMs = 1000
+        let seen = false
+        let reason = ''
+        while (!seen && Date.now() - start < timeoutMs) {
+          await new Promise((res) => setTimeout(res, intervalMs))
+          const curParticipants = latestParticipantsRef.current
+          const curRemaining = latestRemainingRef.current
+          const curStage = latestStageRef.current
+
+          if (typeof preParticipants === 'number' && typeof curParticipants === 'number' && curParticipants > preParticipants) {
+            seen = true
+            reason = 'participants'
+            break
+          }
+          if (typeof preRemaining === 'number' && typeof curRemaining === 'number' && curRemaining < preRemaining) {
+            seen = true
+            reason = 'remaining'
+            break
+          }
+          if (typeof preStage === 'number' && typeof curStage === 'number' && curStage !== preStage) {
+            seen = true
+            reason = 'stage'
+            break
+          }
+        }
+
+        if (seen) {
+          try {
+            reset()
+            console.debug('[enter.reset] called', { reason })
+          } catch (e) {
+            console.debug('[enter.reset] failed', e)
+          }
+        } else {
+          console.debug('[enter.poll] timed out')
+        }
       }
     } catch (err: unknown) {
       let message = ''; if (typeof err === 'object' && err && 'message' in err) { const m = (err as { message?: unknown }).message; message = typeof m === 'string' ? m : String(m); } else { message = String(err); }

@@ -127,7 +127,11 @@ export default function useLotteryReads(): UseLotteryReadsResult {
   const owner = snap.owner;
   const isReadyForDraw = Boolean(snap.isReadyForDraw);
   const isDrawing = Boolean(snap.isDrawing);
-  const participantCount = Number(snap.participantCount ?? 0);
+  // Prefer server-provided participant list when available and count unique lowercased addresses
+  // to avoid double-counting the same ID entering more than once on-chain.
+  const participantCount = Array.isArray(snap.participants)
+    ? new Set(snap.participants.map((p) => (typeof p === 'string' ? p.toLowerCase() : String(p).toLowerCase())).filter(Boolean)).size
+    : Number(snap.participantCount ?? 0);
 
   const stageIndex = snap.stageIndex;
   const roundId = snap.roundId;

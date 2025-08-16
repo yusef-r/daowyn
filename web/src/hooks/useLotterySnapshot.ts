@@ -27,6 +27,7 @@ export type LotterySnapshot = {
   isReadyForDraw?: boolean;
   isDrawing?: boolean;
   participantCount?: number;
+  participants?: `0x${string}`[]; // array of participant addresses (may contain duplicates on-chain)
   stageIndex?: number;
   roundId?: number;
   pendingRefundsTotalWei?: bigint;
@@ -91,6 +92,7 @@ export default function useLotterySnapshot(
     isReadyForDraw?: boolean;
     isDrawing?: boolean;
     participantCount?: number;
+    participants?: `0x${string}`[];
     stageIndex?: number;
     roundId?: number;
     pendingRefundsTotalWei?: bigint;
@@ -134,11 +136,17 @@ export default function useLotterySnapshot(
     const netWeiTiny = toBig(j.netWeiTiny);
     const blockNumber = toNum(j.blockNumber);
     const willTriggerAt = toNum(j.willTriggerAt);
+    const participants = Array.isArray(j.participants)
+      ? (j.participants as unknown[]).map((p) =>
+          typeof p === 'string' ? (p.toLowerCase() as `0x${string}`) : (String(p).toLowerCase() as `0x${string}`)
+        )
+      : undefined;
     return {
       owner,
       isReadyForDraw,
       isDrawing,
       participantCount,
+      participants,
       stageIndex,
       roundId,
       pendingRefundsTotalWei,
@@ -164,6 +172,7 @@ export default function useLotterySnapshot(
       isReadyForDraw: current.isReadyForDraw ?? prev.isReadyForDraw ?? undefined,
       isDrawing: current.isDrawing ?? prev.isDrawing ?? undefined,
       participantCount: current.participantCount ?? prev.participantCount ?? undefined,
+      participants: current.participants ?? prev.participants ?? undefined,
       stageIndex: current.stageIndex ?? prev.stageIndex ?? undefined,
       roundId: current.roundId ?? prev.roundId ?? undefined,
       pendingRefundsTotalWei: current.pendingRefundsTotalWei ?? prev.pendingRefundsTotalWei ?? undefined,

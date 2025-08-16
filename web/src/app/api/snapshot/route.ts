@@ -17,6 +17,7 @@ type RawSnapshot = {
   isReadyForDraw?: boolean;
   isDrawing?: boolean;
   participantCount?: number;
+  participants?: `0x${string}`[]; // array of participant addresses (may contain duplicates on-chain)
   stageIndex?: number;
   roundId?: number;
   pendingRefundsTotalWei?: bigint;
@@ -33,6 +34,7 @@ type CanonicalSnapshotJSON = {
   isReadyForDraw?: boolean;
   isDrawing?: boolean;
   participantCount?: number;
+  participants?: string[]; // lowercased addresses
   stageIndex?: number;
   roundId?: number;
   pendingRefundsTotalWei?: string; // "bn:<decimal>"
@@ -90,6 +92,11 @@ function toCanonicalJSON(raw: RawSnapshot): CanonicalSnapshotJSON {
     isReadyForDraw: raw.isReadyForDraw,
     isDrawing: raw.isDrawing,
     participantCount: typeof raw.participantCount === 'number' ? raw.participantCount : undefined,
+    participants: Array.isArray(raw.participants)
+      ? (raw.participants as (`0x${string}` | string)[]).map((p) =>
+          typeof p === 'string' ? p.toLowerCase() : String(p).toLowerCase()
+        )
+      : undefined,
     stageIndex: typeof raw.stageIndex === 'number' ? raw.stageIndex : undefined,
     roundId: typeof raw.roundId === 'number' ? raw.roundId : undefined,
     pendingRefundsTotalWei: toBnString(raw.pendingRefundsTotalWei),
@@ -175,6 +182,7 @@ function contractsBatch(address: `0x${string}`) {
     { address: a, abi: LOTTERY_ABI, functionName: 'pendingRefundsTotal' },
     { address: a, abi: LOTTERY_ABI, functionName: 'POOL_TARGET' },
     { address: a, abi: LOTTERY_ABI, functionName: 'debugUnits' },
+    { address: a, abi: LOTTERY_ABI, functionName: 'getParticipants' },
     { address: a, abi: LOTTERY_ABI, functionName: 'roundId' },
   ] as const;
 }
@@ -207,7 +215,8 @@ function parseResult(data: MCItem[], blockNumber?: bigint): RawSnapshot {
   const pendingRefundsTotalWei = get<bigint>(5);
   const poolTargetWei = get<bigint>(6);
   const debug = get<[bigint, bigint, bigint, bigint, boolean]>(7);
-  const roundIdRaw = get<bigint | number>(8);
+  const participants = get<`0x${string}`[]>(8);
+  const roundIdRaw = get<bigint | number>(9);
 
   const participantCount =
     participantCountBig !== undefined ? Number(participantCountBig) : undefined;
@@ -229,6 +238,7 @@ function parseResult(data: MCItem[], blockNumber?: bigint): RawSnapshot {
     isReadyForDraw,
     isDrawing,
     participantCount,
+    participants,
     stageIndex,
     roundId,
     pendingRefundsTotalWei,
@@ -255,19 +265,20 @@ async function build(headers: Headers): Promise<BuildResult> {
     const pPend = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'pendingRefundsTotal' });
     const pTarget = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'POOL_TARGET' });
     const pDebug = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'debugUnits' });
+    const pParticipants = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'getParticipants' });
     const pRound = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'roundId' });
     const pBlock = rpcClient.getBlockNumber();
 
     const settled = await Promise.allSettled([
-      pOwner, pReady, pDrawing, pCount, pStage, pPend, pTarget, pDebug, pRound, pBlock
+      pOwner, pReady, pDrawing, pCount, pStage, pPend, pTarget, pDebug, pParticipants, pRound, pBlock
     ]);
 
-    const results: MCItem[] = settled.slice(0, 9).map((s) =>
+    const results: MCItem[] = settled.slice(0, 10).map((s) =>
       s.status === 'fulfilled' ? { status: 'success', result: s.value } : { status: 'failure' }
     );
 
     let blockNumber: bigint | undefined = undefined;
-    const bn = settled[9];
+    const bn = settled[10];
     if (bn && bn.status === 'fulfilled') {
       const v = bn.value as bigint | number;
       blockNumber = typeof v === 'bigint' ? v : BigInt(v);

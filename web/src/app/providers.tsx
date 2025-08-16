@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-qu
 import { useMemo } from 'react'
 import WalletSessionGuard from './providers/WalletSessionGuard'
 import { LotteryDataProvider } from '@/context/LotteryDataContext'
+import AutoDrawDialog from '@/components/AutoDrawDialog'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   void APPKIT_READY
@@ -33,6 +34,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={qc}>
         <LotteryDataProvider>
           <WalletSessionGuard />
+          <AutoDrawDialog />
           {children}
         </LotteryDataProvider>
       </QueryClientProvider>

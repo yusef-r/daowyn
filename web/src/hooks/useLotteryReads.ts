@@ -43,6 +43,7 @@ type UseLotteryReadsResult = {
   stage?: 'Filling' | 'Ready' | 'Drawing';
   stageIndex?: number;             // optional debug
   roundId?: number;                // round identity boundary
+  willTriggerAt?: number;
   isFilling: boolean;
   isReadyStage: boolean;
   isDrawing: boolean;
@@ -130,6 +131,7 @@ export default function useLotteryReads(): UseLotteryReadsResult {
 
   const stageIndex = snap.stageIndex;
   const roundId = snap.roundId;
+  const willTriggerAt = snap.willTriggerAt;
   const stage: UseLotteryReadsResult['stage'] =
     stageIndex === 0 ? 'Filling' : stageIndex === 1 ? 'Ready' : stageIndex === 2 ? 'Drawing' : undefined;
   const isFilling = stage === 'Filling';
@@ -230,6 +232,7 @@ export default function useLotteryReads(): UseLotteryReadsResult {
     stage,
     stageIndex,
     roundId,
+    willTriggerAt,
     isFilling,
     isReadyStage,
     isDrawing,

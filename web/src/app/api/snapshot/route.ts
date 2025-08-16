@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { LOTTERY_ABI } from '@/lib/contracts/lottery';
 import { LOTTERY_ADDRESS } from '@/lib/hedera';
 import { rpcClient, ipBuckets, parseCaller, recordTelemetry } from '@/server/rpc';
+import { ensureAutoDraw } from '@/server/autoDraw';
 
 // Raw snapshot from chain (not JSON-safe)
 type RawSnapshot = {
@@ -396,6 +397,27 @@ export async function GET(req: Request) {
     if (isOutlier(latency)) {
       console.warn(`[snapshot.outlier] served block=${lastGood.forBlock} latency=${latency}ms`);
     }
+
+    // Schedule auto-draw if enabled (attach non-canonical field only to response)
+    try {
+      const stage =
+        typeof body.stageIndex === 'number'
+          ? body.stageIndex === 0
+            ? 'Filling'
+            : body.stageIndex === 1
+            ? 'Ready'
+            : body.stageIndex === 2
+            ? 'Drawing'
+            : undefined
+          : undefined;
+      const sched = ensureAutoDraw({ roundId: body.roundId, stage, isReadyForDraw: body.isReadyForDraw });
+      if (sched?.willTriggerAt) {
+        (body as Record<string, unknown>).willTriggerAt = sched.willTriggerAt;
+      }
+    } catch (err) {
+      console.error('[snapshot.autoDraw] ensureAutoDraw error', err);
+    }
+
     return NextResponse.json(body, {
       headers: {
         ETag: lastGood.etag,
@@ -430,6 +452,27 @@ export async function GET(req: Request) {
     recordRequestLatency(latency, true, Date.now());
     // Explicit rate-limit log (sparse)
     console.warn(`[snapshot.rate_limited] ip=${ip} block=${lastGood?.forBlock ?? ''}`);
+
+    // Schedule auto-draw based on staleBody if applicable (non-canonical)
+    try {
+      const stage =
+        typeof staleBody.stageIndex === 'number'
+          ? staleBody.stageIndex === 0
+            ? 'Filling'
+            : staleBody.stageIndex === 1
+            ? 'Ready'
+            : staleBody.stageIndex === 2
+            ? 'Drawing'
+            : undefined
+          : undefined;
+      const sched = ensureAutoDraw({ roundId: staleBody.roundId, stage, isReadyForDraw: staleBody.isReadyForDraw });
+      if (sched?.willTriggerAt) {
+        (staleBody as Record<string, unknown>).willTriggerAt = sched.willTriggerAt;
+      }
+    } catch (err) {
+      console.error('[snapshot.autoDraw] ensureAutoDraw error', err);
+    }
+
     return NextResponse.json(staleBody, {
       headers: {
         ETag: lastGood?.etag ?? '"stale"',
@@ -466,6 +509,27 @@ export async function GET(req: Request) {
     if (isOutlier(latency)) {
       console.warn(`[snapshot.outlier] built block=${built.forBlock} latency=${latency}ms`);
     }
+
+    // Schedule auto-draw for freshly built snapshot (non-canonical)
+    try {
+      const stage =
+        typeof body.stageIndex === 'number'
+          ? body.stageIndex === 0
+            ? 'Filling'
+            : body.stageIndex === 1
+            ? 'Ready'
+            : body.stageIndex === 2
+            ? 'Drawing'
+            : undefined
+          : undefined;
+      const sched = ensureAutoDraw({ roundId: body.roundId, stage, isReadyForDraw: body.isReadyForDraw });
+      if (sched?.willTriggerAt) {
+        (body as Record<string, unknown>).willTriggerAt = sched.willTriggerAt;
+      }
+    } catch (err) {
+      console.error('[snapshot.autoDraw] ensureAutoDraw error', err);
+    }
+
     return NextResponse.json(body, {
       headers: {
         ETag: built.etag,
@@ -486,6 +550,27 @@ export async function GET(req: Request) {
     } as CanonicalSnapshotJSON & { isStale: boolean };
     const latency = Date.now() - start;
     recordRequestLatency(latency, true, Date.now());
+
+    // Schedule auto-draw for stale fallback if applicable (non-canonical)
+    try {
+      const stage =
+        typeof staleBody.stageIndex === 'number'
+          ? staleBody.stageIndex === 0
+            ? 'Filling'
+            : staleBody.stageIndex === 1
+            ? 'Ready'
+            : staleBody.stageIndex === 2
+            ? 'Drawing'
+            : undefined
+          : undefined;
+      const sched = ensureAutoDraw({ roundId: staleBody.roundId, stage, isReadyForDraw: staleBody.isReadyForDraw });
+      if (sched?.willTriggerAt) {
+        (staleBody as Record<string, unknown>).willTriggerAt = sched.willTriggerAt;
+      }
+    } catch (err) {
+      console.error('[snapshot.autoDraw] ensureAutoDraw error', err);
+    }
+
     return NextResponse.json(staleBody, {
       headers: {
         ETag: lastGood?.etag ?? '"stale"',

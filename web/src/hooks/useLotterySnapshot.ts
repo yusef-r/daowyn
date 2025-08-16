@@ -33,6 +33,7 @@ export type LotterySnapshot = {
   poolTargetWei?: bigint;
   pendingRefundUserWei?: bigint; // no longer populated (server does not read user-specific)
   blockNumber?: number;
+  willTriggerAt?: number; // epoch ms when server scheduled an auto-draw
 
   // From debugUnits()
   balanceWeiTiny?: bigint;
@@ -98,6 +99,7 @@ export default function useLotterySnapshot(
     balanceWeiTiny?: bigint;
     netWeiTiny?: bigint;
     blockNumber?: number;
+    willTriggerAt?: number;
   };
   const lastGoodRef = useRef<Parsed | undefined>(undefined);
 
@@ -131,6 +133,7 @@ export default function useLotterySnapshot(
     const balanceWeiTiny = toBig(j.balanceWeiTiny);
     const netWeiTiny = toBig(j.netWeiTiny);
     const blockNumber = toNum(j.blockNumber);
+    const willTriggerAt = toNum(j.willTriggerAt);
     return {
       owner,
       isReadyForDraw,
@@ -144,6 +147,7 @@ export default function useLotterySnapshot(
       balanceWeiTiny,
       netWeiTiny,
       blockNumber,
+      willTriggerAt,
     };
   };
 
@@ -168,6 +172,8 @@ export default function useLotterySnapshot(
       balanceWeiTiny: current.balanceWeiTiny ?? prev.balanceWeiTiny ?? undefined,
       netWeiTiny: current.netWeiTiny ?? prev.netWeiTiny ?? undefined,
       blockNumber: current.blockNumber ?? prev.blockNumber ?? undefined,
+      // willTriggerAt is ephemeral and only present when server schedules auto-draw
+      willTriggerAt: current.willTriggerAt ?? prev.willTriggerAt ?? undefined,
     };
     for (const k of Object.keys(merged) as (keyof Parsed)[]) {
       if (current[k] === undefined && prev[k] !== undefined) {

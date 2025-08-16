@@ -1,5 +1,6 @@
 'use client'
 
+import React, { useEffect, useState } from 'react';
 import useLotteryReads from '@/hooks/useLotteryReads'
 import { formatUnits } from 'viem'
 
@@ -25,6 +26,7 @@ export default function StatusCard() {
     feePreviewHBAR,
     prizePreviewHBAR,
     progressPercent,
+    willTriggerAt,
     loading,
     error,
     rateLimited,
@@ -55,6 +57,26 @@ export default function StatusCard() {
   // Wallet balance intentionally omitted to enforce zero direct RPC from UI
   const balLoading = false
   const hbar: number | null = null
+
+  // Auto-draw countdown (server-supplied willTriggerAt in ms)
+  const [countdownSec, setCountdownSec] = useState<number | null>(null);
+  useEffect(() => {
+    if (!willTriggerAt || isDrawing) {
+      setCountdownSec(null);
+      return;
+    }
+    if (willTriggerAt <= Date.now()) {
+      setCountdownSec(null);
+      return;
+    }
+    const tick = () => {
+      const s = Math.max(0, Math.ceil((willTriggerAt - Date.now()) / 1000));
+      setCountdownSec(s > 0 ? s : null);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [willTriggerAt, isDrawing]);
 
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
@@ -114,6 +136,9 @@ export default function StatusCard() {
           </div>
         ) : (
           <>
+            {readyNow && countdownSec !== null ? (
+              <div className="px-4 pb-2 text-sm text-muted-foreground">Auto draw in {countdownSec} s</div>
+            ) : null}
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-muted-foreground">Net balance</span>
               <span className="text-xl font-semibold">

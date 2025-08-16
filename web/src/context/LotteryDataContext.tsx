@@ -14,6 +14,13 @@ type Ctx = {
 
   // Optimistic patch helpers
   optimisticEnter: (amountHBAR: string | number) => void;
+
+  // Post-transaction server-update signal:
+  // serverUpdatedCounter increments immediately when a write completes (pattern A).
+  // notifyServerUpdated() increments the counter promptly and triggers a fire-and-forget
+  // snapshot refetch on the provider. Callers should NOT await notifyServerUpdated().
+  serverUpdatedCounter: number;
+  notifyServerUpdated: () => void;
 };
 
 const LotteryDataContext = createContext<Ctx | undefined>(undefined);
@@ -31,6 +38,24 @@ export function LotteryDataProvider({ children }: { children: React.ReactNode })
   // Local optimistic overlay (e.g., self-enter) merged over snapshot until event refetch clears it
   const [overlay, setOverlay] = useState<Partial<LotterySnapshot> | null>(null);
 
+  // Server-updated signal (Pattern A)
+  const [serverUpdatedCounter, setServerUpdatedCounter] = useState<number>(0);
+
+  /**
+   * notifyServerUpdated(): Pattern A contract
+   * - increments serverUpdatedCounter immediately (synchronous)
+   * - triggers a fire-and-forget snap.refetch() (do not await)
+   * - callers should NOT await this function; it exists to nudge other UI panels quickly.
+   */
+  const notifyServerUpdated = useCallback(() => {
+    setServerUpdatedCounter((c) => c + 1);
+    try {
+      void snap.refetch?.();
+    } catch {
+      // noop
+    }
+  }, [snap]);
+
   // Hard boundary on round transitions: clear optimistic overlay when roundId changes
   const prevRoundRef = useRef<number | undefined>(undefined);
   useEffect(() => {
@@ -43,6 +68,13 @@ export function LotteryDataProvider({ children }: { children: React.ReactNode })
     }
     prevRoundRef.current = r;
   }, [snap.roundId]);
+
+  // Clear optimistic overlay when a fresh (non-stale) snapshot arrives so UI snaps back to server truth
+  useEffect(() => {
+    if (!snap.isStale) {
+      setOverlay(() => null);
+    }
+  }, [snap.isStale]);
 
   const effectiveSnap: LotterySnapshot = useMemo(() => {
     if (!overlay) return snap;
@@ -130,8 +162,10 @@ export function LotteryDataProvider({ children }: { children: React.ReactNode })
       snap: effectiveSnap,
       isOwner: stickyOwner,
       optimisticEnter,
+      serverUpdatedCounter,
+      notifyServerUpdated,
     }),
-    [contract, userAddress, effectiveSnap, stickyOwner, optimisticEnter]
+    [contract, userAddress, effectiveSnap, stickyOwner, optimisticEnter, serverUpdatedCounter, notifyServerUpdated]
   );
 
   return <LotteryDataContext.Provider value={value}>{children}</LotteryDataContext.Provider>;

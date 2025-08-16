@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAccount, useChainId, useDisconnect } from 'wagmi'
 import useLotteryReads from '@/hooks/useLotteryReads'
 import { useEnterLottery } from '@/hooks/useLotteryWrites'
+import { useLotteryData } from '@/context/LotteryDataContext'
 import { getExplorerTxUrl } from '@/lib/mirror'
 import { useAppKit } from '@reown/appkit/react'
 
@@ -109,6 +110,8 @@ export default function EnterCard() {
     return over > 0 ? over : 0
   }, [amount, remainingHBAR])
 
+  const { notifyServerUpdated } = useLotteryData()
+
   const handleEnterClick = async () => {
     if (!canSubmit) return
     if (submittingLocal || isPending || isConfirming) return
@@ -124,9 +127,14 @@ export default function EnterCard() {
       const txHash = await enter(amount)
       console.debug('[enter.txHash]', { txHash })
 
-      // On tx hash returned, refetch server snapshot once then poll briefly (bounded)
+      // On tx hash returned:
+      // - bump the provider's serverUpdatedCounter promptly so other panels react quickly
+      // - then perform the EnterCard's own awaited refetch() + bounded poll (pattern A)
       if (txHash) {
         try {
+          try {
+            notifyServerUpdated()
+          } catch {}
           await refetch()
           console.debug('[enter.refetch] completed')
         } catch (e) {

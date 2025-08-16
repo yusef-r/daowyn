@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useAccount, useChainId } from 'wagmi'
 import useLotteryReads, { useIsOwner } from '@/hooks/useLotteryReads'
 import { useLotteryWrites } from '@/hooks/useLotteryWrites'
+import { useLotteryData } from '@/context/LotteryDataContext'
 import { getExplorerAccountUrl } from '@/lib/mirror'
 
 export default function AdminCard() {
@@ -38,6 +39,7 @@ export default function AdminCard() {
     refetch,
   } = useLotteryReads()
   const { triggerDraw, error: txError } = useLotteryWrites()
+  const { notifyServerUpdated, serverUpdatedCounter } = useLotteryData()
 
   useEffect(() => {
     try {
@@ -73,7 +75,10 @@ export default function AdminCard() {
     try {
       const txHash = await triggerDraw()
       if (txHash) {
-        await refetch()
+        try {
+          notifyServerUpdated()
+        } catch {}
+        // Do not await refetch here; provider's notifyServerUpdated will fire-and-forget a refetch
       }
     } catch {
       // noop — user can retry
@@ -93,6 +98,13 @@ export default function AdminCard() {
   useEffect(() => {
     if (isStageDrawing) setBusyPulse(false)
   }, [isStageDrawing])
+
+  // When other parts of the app signal a server update, nudge this panel to refetch immediately.
+  useEffect(() => {
+    try {
+      void refetch()
+    } catch {}
+  }, [serverUpdatedCounter, refetch])
 
   if (!isConnected) return null
   if (!isOwner) return null

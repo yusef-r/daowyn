@@ -1,0 +1,69 @@
+{
+  "name": "daowyn - next14 safe",
+  "build": {
+    "dockerfile": "dockerfile",
+    "context": ".."
+  },
+
+  "remoteUser": "node",
+  "init": true,
+
+  "workspaceFolder": "/workspaces/daowyn",
+
+  // Keep privileges low
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--security-opt", "no-new-privileges:true",
+    "--security-opt", "apparmor=docker-default",
+    "--pids-limit", "512",
+    "--ipc", "none"
+    // To go offline temporarily, add: ,"--network","none"
+  ],
+
+  // Helpful env for dev in containers 
+  "containerEnv": {
+    "HOST": "0.0.0.0",
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "CHOKIDAR_USEPOLLING": "true",
+    "CHOKIDAR_INTERVAL": "200",
+    "HEDERA_NETWORK": "testnet",
+    "NPM_CONFIG_IGNORE_SCRIPTS": "true"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "extensions.autoCheckUpdates": false,
+        "extensions.autoUpdate": false,
+        "update.mode": "none",
+        "telemetry.telemetryLevel": "off",
+        "npm.fetchOnlinePackageInfo": false
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "NomicFoundation.hardhat-solidity" 
+      ]
+    }
+  },
+
+  // Speed up installs, keep host clean
+  "mounts": [
+  "type=volume,source=daowyn_node_modules,target=/workspaces/daowyn/web/node_modules"
+  ],
+
+  // Next dev default, plus common alternates
+  "forwardPorts": [3000, 3001, 8545, 5173],
+  "portsAttributes": {
+    "3000": { "label": "next-app" },
+    "3001": { "label": "edge-api-or-backend" },
+    "8545": { "label": "hardhat-node" }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "openBrowser"
+  },
+
+  // Post-create: message + add 'npms' alias for one-off script-enabled installs
+  "postCreateCommand": "bash -lc \"echo 'Container ready. npm lifecycle scripts are disabled by default. Use: npms <pkg> to allow scripts for a single install.' && grep -qxF \\\"alias npms='npm_config_ignore_scripts=false npm install'\\\" ~/.bashrc || echo \\\"alias npms='npm_config_ignore_scripts=false npm install'\\\" >> ~/.bashrc\""
+}

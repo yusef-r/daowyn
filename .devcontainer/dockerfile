@@ -1,0 +1,24 @@
+FROM node:20-bookworm-slim
+
+# Root tasks
+USER root
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get install -y --no-install-recommends \
+       python3 \
+       build-essential \
+       git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Optional: enable Corepack for yarn/pnpm if you choose later
+RUN corepack enable
+
+# Prep workspace, ensure non-root can write (including node_modules volume)
+RUN mkdir -p /workspaces/daowyn/node_modules \
+  && chown -R node:node /workspaces
+
+# Workdir inside the container
+WORKDIR /workspaces/daowyn
+
+# Drop privileges
+USER node

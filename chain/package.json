@@ -1,0 +1,23 @@
+{
+  "name": "chain",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile && npm run abi:sync",
+    "abi:sync": "node scripts/sync-abi.js Lottery",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-viem": "^2.1.1",
+    "@types/node": "^24.2.1",
+    "dotenv": "^17.2.1",
+    "hardhat": "^2.26.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2",
+    "viem": "^2.33.3"
+  }
+}

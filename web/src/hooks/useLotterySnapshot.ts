@@ -352,13 +352,24 @@ export default function useLotterySnapshot(
       return { merged: current, usedFallback: false };
     }
     let used = false;
+
+    // Resolve stageIndex that will be used in the merged snapshot
+    const stageIndexNext = current.stageIndex ?? prev.stageIndex ?? undefined;
+
+    // Rule of truth: "Pool is Filling until it reaches the target; then it locks."
+    // Never carry a previous lockAt into the Filling stage (stageIndex === 0).
+    const lockAtValue =
+      typeof stageIndexNext === 'number' && stageIndexNext === 0
+        ? undefined
+        : (current.lockAt ?? prev.lockAt ?? undefined);
+
     const merged: Parsed = {
       owner: current.owner ?? prev.owner ?? undefined,
       isReadyForDraw: current.isReadyForDraw ?? prev.isReadyForDraw ?? undefined,
       isDrawing: current.isDrawing ?? prev.isDrawing ?? undefined,
       participantCount: current.participantCount ?? prev.participantCount ?? undefined,
       participantsCount: current.participantsCount ?? prev.participantsCount ?? undefined,
-      stageIndex: current.stageIndex ?? prev.stageIndex ?? undefined,
+      stageIndex: stageIndexNext,
       roundId: current.roundId ?? prev.roundId ?? undefined,
       pendingRefundsTotalWei: current.pendingRefundsTotalWei ?? prev.pendingRefundsTotalWei ?? undefined,
       poolTargetWei: current.poolTargetWei ?? prev.poolTargetWei ?? undefined,
@@ -369,7 +380,7 @@ export default function useLotterySnapshot(
 
       stage: current.stage ?? prev.stage,
       openAt: current.openAt ?? prev.openAt,
-      lockAt: current.lockAt ?? prev.lockAt,
+      lockAt: lockAtValue,
       revealTargetAt: current.revealTargetAt ?? prev.revealTargetAt,
       reopenAt: current.reopenAt ?? prev.reopenAt,
       enterable: current.enterable ?? prev.enterable,

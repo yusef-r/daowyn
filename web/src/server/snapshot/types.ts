@@ -22,8 +22,9 @@ export type CanonicalSnapshotJSON = {
   owner?: `0x${string}`; // lowercased string
   isReadyForDraw?: boolean;
   isDrawing?: boolean;
-  participantCount?: number;     // on-chain participantCount (raw)
-  participantsCount?: number;    // derived unique count from current-round entries
+  participantCount?: number;     // on-chain participantCount (raw) — kept for backward-compat
+  participantsCount?: number;    // derived unique count from current-round entries (canonical)
+  entriesCount?: number;         // decoded EnteredPool event count in the computed window (derived)
   stageIndex?: number;
   stage?: 'Filling' | 'Ready' | 'Drawing';
   roundId?: number;

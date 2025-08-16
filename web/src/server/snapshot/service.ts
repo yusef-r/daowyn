@@ -789,6 +789,8 @@ export async function buildSnapshot(headers: Headers): Promise<BuildResult> {
       }
       // Keep existing participantCount field in sync with participantsCount
       canon.participantCount = participantsCount;
+      // Surface derived entriesCount for hashing and clients
+      canon.entriesCount = entriesCount;
     }
     // Prefer on-chain net for diagnostics; fallback to derived total
     if (typeof raw.netWeiTiny === 'bigint') {
@@ -838,7 +840,11 @@ export async function buildSnapshot(headers: Headers): Promise<BuildResult> {
     // Timing top-level fields
     const lp = canon.spin?.landingPlan;
     canon.openAt = lastWinner?.timestamp || undefined;
-    canon.lockAt = (lockTs ?? undefined) || undefined;
+    // Rule of truth: "Pool is Filling until it reaches the target; then it locks."
+    // Only set lockAt when the server-observed stage indicates the round is locked (stageIndex >= 1).
+    canon.lockAt = (typeof canon.stageIndex === 'number' && canon.stageIndex >= 1)
+      ? ((lockTs ?? undefined) || undefined)
+      : undefined;
     canon.revealTargetAt = typeof canon.spin?.revealTargetAt === 'number' ? canon.spin!.revealTargetAt! : undefined;
     canon.reopenAt = lp ? lp.startAt + lp.durationMs : undefined;
 
@@ -916,6 +922,8 @@ export async function buildSnapshot(headers: Headers): Promise<BuildResult> {
         }
         // Keep existing participantCount field in sync with participantsCount
         canon.participantCount = participantsCount;
+      // Surface derived entriesCount for hashing and clients
+      canon.entriesCount = entriesCount;
       }
       // Prefer on-chain net for diagnostics; fallback to derived total
       if (typeof raw.netWeiTiny === 'bigint') {
@@ -963,7 +971,11 @@ export async function buildSnapshot(headers: Headers): Promise<BuildResult> {
 
       const lp = canon.spin?.landingPlan;
       canon.openAt = lastWinner?.timestamp || undefined;
-      canon.lockAt = (lockTs ?? undefined) || undefined;
+      // Rule of truth: "Pool is Filling until it reaches the target; then it locks."
+      // Only set lockAt when the server-observed stage indicates the round is locked (stageIndex >= 1).
+      canon.lockAt = (typeof canon.stageIndex === 'number' && canon.stageIndex >= 1)
+        ? ((lockTs ?? undefined) || undefined)
+        : undefined;
       canon.revealTargetAt = typeof canon.spin?.revealTargetAt === 'number' ? canon.spin!.revealTargetAt! : undefined;
       canon.reopenAt = lp ? lp.startAt + lp.durationMs : undefined;
 

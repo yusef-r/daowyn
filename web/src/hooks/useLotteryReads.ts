@@ -49,6 +49,7 @@ type UseLotteryReadsResult = {
   enterable?: boolean;
 
   participantCount: number;
+  participantsCount: number;
 
   // balances (formatted/net) + previews
   balanceWei: bigint | undefined;         // unused (kept for compatibility)
@@ -127,7 +128,8 @@ export default function useLotteryReads(): UseLotteryReadsResult {
   const owner = snap.owner;
   const isReadyForDraw = Boolean(snap.isReadyForDraw);
   const isDrawing = Boolean(snap.isDrawing);
-  const participantCount = Number(snap.participantCount ?? 0);
+  const participantsCount = Number(snap.participantsCount ?? snap.participantCount ?? 0);
+  const participantCount = participantsCount;
 
   const stageIndex = snap.stageIndex;
   const roundId = snap.roundId;
@@ -235,6 +237,7 @@ export default function useLotteryReads(): UseLotteryReadsResult {
     enterable,
 
     participantCount,
+    participantsCount,
 
     // balances + previews
     balanceWei: undefined, // not used externally; kept for compatibility

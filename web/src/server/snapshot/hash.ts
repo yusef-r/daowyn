@@ -47,10 +47,43 @@ export function toCanonicalJSON(raw: RawSnapshot): CanonicalSnapshotJSON {
 }
 
 // Exclude volatile/non-semantic fields from hash (e.g., blockNumber)
+// Build an explicit, deterministic subset of canonical fields that are semantic
+// to clients (include fast-changing UI-driving fields here).
 function canonicalForHash(canon: CanonicalSnapshotJSON) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { blockNumber, ...rest } = canon;
-  return rest;
+  const out: Record<string, unknown> = {};
+  const set = (k: string, v: unknown) => {
+    if (v !== undefined) out[k] = v;
+  };
+
+  // Core on-chain / semantic fields
+  set('owner', canon.owner);
+  set('isReadyForDraw', canon.isReadyForDraw);
+  set('isDrawing', canon.isDrawing);
+  set('participantCount', canon.participantCount);
+  set('participantsCount', canon.participantsCount);
+  set('entriesCount', canon.entriesCount);
+
+  // Round / stage
+  set('stageIndex', canon.stageIndex);
+  set('stage', canon.stage);
+  set('roundId', canon.roundId);
+
+  // Balances (JSON-safe)
+  set('pendingRefundsTotalWei', canon.pendingRefundsTotalWei);
+  set('poolTargetWei', canon.poolTargetWei);
+  set('balanceWeiTiny', canon.balanceWeiTiny);
+  set('netWeiTiny', canon.netWeiTiny);
+  set('netBalance', canon.netBalance);
+
+  // Layout / segments change markers (clients key off hashes)
+  set('layoutHash', canon.layoutHash);
+  set('segmentsHash', canon.segmentsHash);
+
+  // Spin / UI-driven transient state that should force new ETag when it changes
+  set('spin', canon.spin);
+  set('enterable', canon.enterable);
+
+  return out;
 }
 
 export function computeSnapshotHash(canon: CanonicalSnapshotJSON): string {

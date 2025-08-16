@@ -84,6 +84,13 @@ export type LotterySnapshot = {
 
   // stale-but-visible indicator
   isStale: boolean;
+
+  // Fresh snapshot metadata (most recent non-stale snapshot observed)
+  snapshotEtag?: string;
+  snapshotHash?: string;
+  snapshotLayoutHash?: string;
+  snapshotSegmentsHash?: string;
+  snapshotBlockNumber?: number;
 };
 
 /**
@@ -117,6 +124,13 @@ export default function useLotterySnapshot(
   const lastBlockRef = useRef<number | undefined>(undefined);
   const lastHashRef = useRef<string | undefined>(undefined);
   const lastEtagRef = useRef<string | undefined>(undefined);
+  // lastFresh*: baseline from the most recent non-stale (stale:0) snapshot
+  const lastFreshRef = useRef<Parsed | undefined>(undefined);
+  const lastFreshEtagRef = useRef<string | undefined>(undefined);
+  const lastFreshHashRef = useRef<string | undefined>(undefined);
+  const lastFreshLayoutHashRef = useRef<string | undefined>(undefined);
+  const lastFreshSegmentsHashRef = useRef<string | undefined>(undefined);
+  const lastFreshBlockRef = useRef<number | undefined>(undefined);
   const [stale, setStale] = useState<boolean>(false);
 
   // last good parsed
@@ -426,7 +440,7 @@ export default function useLotterySnapshot(
       try {
         const res = await fetch('/api/snapshot', {
           cache: 'no-store',
-          headers: lastEtagRef.current ? { 'If-None-Match': lastEtagRef.current } : undefined,
+          headers: lastFreshEtagRef.current ? { 'If-None-Match': lastFreshEtagRef.current } : undefined,
         });
 
         const status = res.status;
@@ -474,31 +488,40 @@ export default function useLotterySnapshot(
         } catch {}
 
         // Change-only updates:
-        // Apply updates whenever ETag or x-snapshot-hash changes, even if response is stale.
-        // If the server layout hash header changes, also apply updates to keep the wheel smooth.
+        // Apply updates whenever the fresh-baseline (lastFresh) changes. Stale responses should not
+        // overwrite the user's semantic view. Compare headers against lastFresh* refs so stale bodies
+        // are only used for metadata / scheduling.
         const shouldUpdate =
-          (hEtag !== undefined && hEtag !== lastEtagRef.current) ||
-          (hHash !== undefined && hHash !== lastHashRef.current) ||
-          (typeof hLayoutHash === 'string' && hLayoutHash !== (lastGoodRef.current as Parsed | undefined)?.layoutHash) ||
-          (typeof hSegmentsHash === 'string' && hSegmentsHash !== (lastGoodRef.current as Parsed | undefined)?.segmentsHash);
+          (hEtag !== undefined && hEtag !== lastFreshEtagRef.current) ||
+          (hHash !== undefined && hHash !== lastFreshHashRef.current) ||
+          (typeof hLayoutHash === 'string' && hLayoutHash !== (lastFreshRef.current as Parsed | undefined)?.layoutHash) ||
+          (typeof hSegmentsHash === 'string' && hSegmentsHash !== (lastFreshRef.current as Parsed | undefined)?.segmentsHash);
 
         if (shouldUpdate) {
           const next = { ...parsed };
           if (typeof hLayoutHash === 'string') next.layoutHash = hLayoutHash;
           if (typeof hSegmentsHash === 'string') next.segmentsHash = hSegmentsHash;
           const { merged } = mergeWithLastGood(next);
-          lastGoodRef.current = merged;
-          try {
-            console.debug('[useLotterySnapshot.merged]', {
-              mergedSegmentsLen: Array.isArray(merged.segments) ? merged.segments.length : 0,
-              mergedLayoutLen: Array.isArray(merged.layout?.segments) ? merged.layout!.segments.length : 0,
-              mergedSegmentsHash: merged.segmentsHash ?? null,
-              mergedLayoutHash: merged.layoutHash ?? null,
-            });
-          } catch {}
-          lastBlockRef.current = hBlock ?? merged.blockNumber ?? lastBlockRef.current;
-          lastHashRef.current = hHash ?? lastHashRef.current;
-          lastEtagRef.current = hEtag ?? lastEtagRef.current;
+
+          // Adopt as fresh baseline only when the server explicitly marked this response as non-stale,
+          // or if we don't yet have any fresh baseline at all (first good snapshot).
+          if (!hStale || lastFreshRef.current === undefined) {
+            lastGoodRef.current = merged;
+            lastFreshRef.current = merged;
+            lastFreshEtagRef.current = hEtag ?? lastFreshEtagRef.current;
+            lastFreshHashRef.current = hHash ?? lastFreshHashRef.current;
+            lastFreshLayoutHashRef.current = hLayoutHash ?? lastFreshLayoutHashRef.current;
+            lastFreshSegmentsHashRef.current = hSegmentsHash ?? lastFreshSegmentsHashRef.current;
+            lastFreshBlockRef.current = hBlock ?? merged.blockNumber ?? lastFreshBlockRef.current;
+            lastBlockRef.current = lastFreshBlockRef.current;
+            lastHashRef.current = lastFreshHashRef.current;
+            lastEtagRef.current = lastFreshEtagRef.current;
+          } else {
+            // Stale response: keep lastFresh as the source of truth for user-facing fields.
+            try {
+              console.debug('[useLotterySnapshot.stale_received]', { hBlock, hHash, hEtag });
+            } catch {}
+          }
         }
       } catch (err) {
         setError(err as Error);
@@ -533,7 +556,7 @@ export default function useLotterySnapshot(
   }, [enabled, doFetch]);
 
   // Current parsed (may be empty on first load)
-  const current: Parsed = lastGoodRef.current ?? {};
+  const current: Parsed = lastFreshRef.current ?? lastGoodRef.current ?? {};
 
   // Disabled or no contract
   if (!enabled) {
@@ -552,11 +575,17 @@ export default function useLotterySnapshot(
   // Partial sticky merge already baked into lastGoodRef; reflect stale if rateLimited true
   return {
     ...current,
-    isLoading: loading && !lastGoodRef.current, // never skeleton during refetch after first good snapshot
+    isLoading: loading && !lastFreshRef.current && !lastGoodRef.current, // never skeleton during refetch after first good snapshot
     error,
     refetch,
     rateLimited, // banner only when server explicitly signals rate-limited
     rateLimitedUntil: undefined,
     isStale: stale, // tiny amber dot only when serving lastGood from server (stale)
+    // Expose fresh-baseline metadata so consumers can reason about etags/hashes/blockNumbers
+    snapshotEtag: lastFreshEtagRef.current ?? lastEtagRef.current ?? undefined,
+    snapshotHash: lastFreshHashRef.current ?? lastHashRef.current ?? undefined,
+    snapshotLayoutHash: lastFreshLayoutHashRef.current ?? undefined,
+    snapshotSegmentsHash: lastFreshSegmentsHashRef.current ?? undefined,
+    snapshotBlockNumber: lastFreshBlockRef.current ?? lastBlockRef.current ?? undefined,
   } as LotterySnapshot;
 }

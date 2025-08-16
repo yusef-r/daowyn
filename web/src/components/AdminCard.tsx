@@ -99,12 +99,6 @@ export default function AdminCard() {
     if (isStageDrawing) setBusyPulse(false)
   }, [isStageDrawing])
 
-  // When other parts of the app signal a server update, nudge this panel to refetch immediately.
-  useEffect(() => {
-    try {
-      void refetch()
-    } catch {}
-  }, [serverUpdatedCounter, refetch])
 
   if (!isConnected) return null
   if (!isOwner) return null
@@ -142,7 +136,7 @@ export default function AdminCard() {
         </div>
         <div className="flex justify-between">
           <span>Balance</span>
-          <span>{loading ? '...' : `${(balanceHBAR ?? 0).toFixed(6)} HBAR`}</span>
+          <span>{loading ? '...' : `${(netHBAR ?? 0).toFixed(6)} HBAR`}</span>
         </div>
         <div className="flex justify-between">
           <span>Fee preview</span>

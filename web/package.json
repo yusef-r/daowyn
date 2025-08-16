@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint && npm run -s lint:forbid-legacy-reads",
-    "lint:forbid-legacy-reads": "sh -c 'set -e; res=$(grep -R -nE \"use(ReadContract|ReadContracts|BlockNumber|PublicClient|WatchContractEvent)\\(|readContract\\(|multicall\\(|getBlockNumber\\(|waitForTransactionReceipt\\(|useBalance\\(|useBlockNumber\\(|useReadContracts\\(|usePublicClient\\(|watchContractEvent\\(\" --exclude-dir=server --exclude-dir=api -- src || true); if [ -n \\\"$res\\\" ]; then echo \\\"$res\\\"; echo \\\"Legacy reads forbidden: found direct chain reads/watchers\\\"; exit 1; fi'"
+    "lint:forbid-legacy-reads": "sh -c 'set -e; res=$(grep -R -nE \"use(ReadContract|ReadContracts|BlockNumber|PublicClient|WatchContractEvent)\\(|readContract\\(|multicall\\(|getBlockNumber\\(|waitForTransactionReceipt\\(|useBalance\\(|useBlockNumber\\(|useReadContracts\\(|usePublicClient\\(|watchContractEvent\\(\" -- web/src || true); if [ -n \\\"$res\\\" ]; then echo \\\"$res\\\"; echo \\\"Legacy reads forbidden: found direct chain reads/watchers\\\"; exit 1; fi'"
   },
   "dependencies": {
     "@reown/appkit": "1.7.18",

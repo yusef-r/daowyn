@@ -46,10 +46,8 @@ type UseLotteryReadsResult = {
   isFilling: boolean;
   isReadyStage: boolean;
   isDrawing: boolean;
-  enterable?: boolean;
 
   participantCount: number;
-  participantsCount: number;
 
   // balances (formatted/net) + previews
   balanceWei: bigint | undefined;         // unused (kept for compatibility)
@@ -128,8 +126,7 @@ export default function useLotteryReads(): UseLotteryReadsResult {
   const owner = snap.owner;
   const isReadyForDraw = Boolean(snap.isReadyForDraw);
   const isDrawing = Boolean(snap.isDrawing);
-  const participantsCount = Number(snap.participantsCount ?? snap.participantCount ?? 0);
-  const participantCount = participantsCount;
+  const participantCount = Number(snap.participantCount ?? 0);
 
   const stageIndex = snap.stageIndex;
   const roundId = snap.roundId;
@@ -137,7 +134,6 @@ export default function useLotteryReads(): UseLotteryReadsResult {
     stageIndex === 0 ? 'Filling' : stageIndex === 1 ? 'Ready' : stageIndex === 2 ? 'Drawing' : undefined;
   const isFilling = stage === 'Filling';
   const isReadyStage = stage === 'Ready';
-  const enterable = Boolean(snap.enterable);
 
   // Balances from tinybars (debugUnits)
   const balanceTiny = snap.balanceWeiTiny;
@@ -169,7 +165,7 @@ export default function useLotteryReads(): UseLotteryReadsResult {
   const feeWei = useMemo(() => {
     if (netWei === undefined) return undefined;
     return safeMulDiv(netWei, FEE_NUMERATOR, FEE_DENOMINATOR);
-  }, [netWei, FEE_NUMERATOR, FEE_DENOMINATOR]);
+  }, [netWei]);
 
   const prizeWei = useMemo(() => {
     if (netWei === undefined || feeWei === undefined) return undefined;
@@ -179,16 +175,19 @@ export default function useLotteryReads(): UseLotteryReadsResult {
   const feePreviewHBAR = toHBAR(feeWei, HBAR_DECIMALS);
   const prizePreviewHBAR = toHBAR(prizeWei, HBAR_DECIMALS);
 
-  // Unified readiness: derive only from snapshot-provided readiness
-  const isReadyDerived = Boolean(isReadyForDraw);
+  // readiness derived via net vs. target
+  const isReadyDerived =
+    netWei !== undefined && poolTargetWeiTyped !== undefined
+      ? netWei >= poolTargetWeiTyped
+      : false;
   const isReadyForDrawDerived = isReadyDerived;
 
-  // Draw readiness uses snapshot readiness or explicit Ready stage
-  const canDraw = Boolean(isReadyForDraw || isReadyStage);
+  // Draw readiness across both explicit stage and derived balance checks
+  const canDraw = Boolean(isReadyStage || isReadyForDraw || isReadyDerived);
 
-  // Mismatch diagnostics disabled under unified readiness
-  const readyMismatch = false;
-  const stageMismatch = false;
+  // mismatch flags for diagnostics
+  const readyMismatch = isReadyForDraw !== isReadyDerived;
+  const stageMismatch = (stage !== 'Ready') && isReadyDerived;
 
   // --- Meta state aggregation ---
   const loading = snap.isLoading;
@@ -234,10 +233,8 @@ export default function useLotteryReads(): UseLotteryReadsResult {
     isFilling,
     isReadyStage,
     isDrawing,
-    enterable,
 
     participantCount,
-    participantsCount,
 
     // balances + previews
     balanceWei: undefined, // not used externally; kept for compatibility

@@ -24,18 +24,6 @@ export const hederaTestnet = defineChain({
   testnet: true,
 });
 
-/** Optional: surface the lottery address from env for consistent imports
- *  @deprecated Use LOTTERY_ADDRESS from '@/lib/contracts/lottery' instead.
- */
+/** Optional: surface the lottery address from env for consistent imports */
 export const LOTTERY_ADDRESS =
   (process.env.NEXT_PUBLIC_LOTTERY_ADDRESS as `0x${string}` | undefined) ?? undefined;
-
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    console.log('[addr.lib.hedera]', {
-      LOTTERY_ADDRESS,
-      env_NEXT_PUBLIC_LOTTERY_ADDRESS: process.env.NEXT_PUBLIC_LOTTERY_ADDRESS ?? null,
-      env_NEXT_PUBLIC_CONTRACT_ADDRESS: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? null,
-    });
-  } catch {}
-}

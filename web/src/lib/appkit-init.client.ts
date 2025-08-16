@@ -15,7 +15,6 @@ declare global {
   interface Window {
     __appkit_inited__?: boolean;
     __appkit_wagmi_config__?: Config;
-    __wc2_cleared__?: boolean;
   }
 }
 
@@ -28,24 +27,6 @@ export const APPKIT_READY: boolean = (() => {
   if (!projectId) {
     console.warn('[AppKit] Missing NEXT_PUBLIC_WC_PROJECT_ID')
     return false
-  }
-
-  // Dev hygiene: clear stale WalletConnect v2 storage once per session before init
-  if (process.env.NODE_ENV !== 'production' && !window.__wc2_cleared__) {
-    try {
-      const keys: string[] = []
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const k = window.localStorage.key(i)
-        if (!k) continue
-        if (k.startsWith('wc@2') || k.startsWith('walletconnect') || k.includes('wc/')) {
-          keys.push(k)
-        }
-      }
-      for (const k of keys) window.localStorage.removeItem(k)
-      window.__wc2_cleared__ = true
-      // Surface diagnostic to confirm cleanup ran
-      console.log('[wc2.dev.cleanup]', { removed: keys.length })
-    } catch {}
   }
 
   const adapter = new WagmiAdapter({
@@ -77,31 +58,6 @@ export const APPKIT_READY: boolean = (() => {
   // expose wagmiConfig so the app uses the exact same instance
   window.__appkit_wagmi_config__ = adapter.wagmiConfig
   window.__appkit_inited__ = true
-
-  // Dev HMR: on module dispose, proactively clear WC storage to avoid "No matching key"
-  if (process.env.NODE_ENV !== 'production') {
-    try {
-      // Support both ESM and (rare) webpack HMR shapes
-      const hot = (import.meta as unknown as { hot?: { dispose(cb: () => void): void } }).hot
-      if (hot && typeof hot.dispose === 'function') {
-        hot.dispose(() => {
-          try {
-            const keys: string[] = []
-            for (let i = 0; i < window.localStorage.length; i++) {
-              const k = window.localStorage.key(i)
-              if (!k) continue
-              if (k.startsWith('wc@2') || k.startsWith('walletconnect') || k.includes('wc/')) {
-                keys.push(k)
-              }
-            }
-            for (const k of keys) window.localStorage.removeItem(k)
-            console.log('[wc2.dev.cleanup.dispose]', { removed: keys.length })
-          } catch {}
-        })
-      }
-    } catch {}
-  }
-
   return true
 })()
 

@@ -4,25 +4,27 @@ import { useMemo, useState, useEffect } from 'react'
 import { useAccount, useChainId } from 'wagmi'
 import useLotteryReads, { useIsOwner } from '@/hooks/useLotteryReads'
 import { useLotteryWrites } from '@/hooks/useLotteryWrites'
-import { useLotteryData } from '@/context/LotteryDataContext'
-import { getExplorerAccountUrl } from '@/lib/mirror'
+import { useEvents } from '@/app/providers/events'
+import { Toaster } from 'sonner'
+import { getExplorerTxUrl, getExplorerAccountUrl } from '@/lib/mirror'
 
 export default function AdminCard() {
-  const account = useAccount()
-  const { isConnected, address: acctAddress } = account
+  const { isConnected } = useAccount()
   const { isOwner, owner } = useIsOwner()
   const chainId = useChainId()
   const {
     isReadyForDraw,
+    isReadyDerived,
+    isDrawing,
     participantCount,
     balanceHBAR,
     netHBAR,
     pendingRefundsTotalHBAR,
     pendingRefundUserHBAR,
     remainingHBAR,
+    poolTargetWei,
     stage,
     stageIndex,
-    roundId,
     lotteryAddress,
     readChainId: readChainIdFromHook,
     blockNumber,
@@ -30,75 +32,60 @@ export default function AdminCard() {
     targetHBAR,
     hasCode,
     codeHash,
-    loading,
-    error,
+    lastEvent,
     feePreviewHBAR,
     prizePreviewHBAR,
+    readyMismatch,
+    stageMismatch,
+    loading,
+    error,
+    canDraw,
     onExpectedNetwork,
-    isStale,
     refetch,
   } = useLotteryReads()
-  const { triggerDraw, error: txError } = useLotteryWrites()
-  const { notifyServerUpdated, serverUpdatedCounter } = useLotteryData()
-
-  useEffect(() => {
-    try {
-      const headerBtn = typeof document !== 'undefined' ? document.querySelector('header button[aria-haspopup="menu"]') : null
-      const headerText = headerBtn?.textContent?.trim() ?? null
-      console.log('[diag.account.admin]', {
-        component: 'AdminCard',
-        address: acctAddress ?? null,
-        headerText,
-        providerWrap: 'WagmiProvider -> QueryClientProvider -> LotteryDataProvider -> WalletSessionGuard',
-      })
-      if (!acctAddress) {
-        console.warn('[diag.account.null]', {
-          componentPath: 'web/src/components/AdminCard.tsx',
-          wrappedBy: 'WagmiProvider -> QueryClientProvider -> LotteryDataProvider -> WalletSessionGuard',
-        })
-      }
-    } catch {}
-  }, [acctAddress])
+  const { triggerDraw, submitting, waiting, error: txError } = useLotteryWrites()
+  const { latest: latestEvent } = useEvents()
 
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [busyPulse, setBusyPulse] = useState(false)
+  const [optimisticDrawing, setOptimisticDrawing] = useState(false)
+  const [toastKey, setToastKey] = useState(0)
 
   const canTrigger = useMemo(() => {
-    return Boolean(isOwner && onExpectedNetwork && isReadyForDraw && stage !== 'Drawing')
-  }, [isOwner, onExpectedNetwork, isReadyForDraw, stage])
+    // Only disable Draw when !isReadyForDraw; keep Admin visible via sticky isOwner
+    return Boolean(isOwner && isReadyForDraw && onExpectedNetwork && !isDrawing && !optimisticDrawing)
+  }, [isOwner, isReadyForDraw, onExpectedNetwork, isDrawing, optimisticDrawing])
 
-  const isStageDrawing = stage === 'Drawing'
+  const currentDrawing = optimisticDrawing || isDrawing || waiting || submitting
 
   const onConfirm = async () => {
     setConfirmOpen(false)
-    setBusyPulse(true)
+    setOptimisticDrawing(true)
     try {
       const txHash = await triggerDraw()
+      // Do not wait on-chain from the UI; rely on server snapshot refresh
       if (txHash) {
-        try {
-          notifyServerUpdated()
-        } catch {}
-        // Do not await refetch here; provider's notifyServerUpdated will fire-and-forget a refetch
+        await refetch()
       }
     } catch {
-      // noop — user can retry
-    } finally {
-      // short, non-persistent pulse; yield to snapshot immediately
-      setTimeout(() => setBusyPulse(false), 500)
+      // surface via txError state; reset optimistic state so user can retry
+      setOptimisticDrawing(false)
+      return
     }
+    // keep optimistic true until events hook resets in future phase
+    // for now, timeout reset as a fallback
+    setTimeout(() => setOptimisticDrawing(false), 30_000)
   }
 
-  // Round boundary reset: clear any local UI state
+  // reset optimistic state and show a brief toast when WinnerPicked observed
   useEffect(() => {
-    setConfirmOpen(false)
-    setBusyPulse(false)
-  }, [roundId])
-
-  // If snapshot enters Drawing stage, stop any local pulse immediately
-  useEffect(() => {
-    if (isStageDrawing) setBusyPulse(false)
-  }, [isStageDrawing])
-
+    if (!latestEvent) return
+    if (latestEvent.type === 'WinnerPicked') {
+      setOptimisticDrawing(false)
+      // bump toast key to trigger a simple notification (Toaster already mounted at layout)
+      setToastKey(k => k + 1)
+      // we intentionally don't call explicit refresh here; wagmi reads should refetch
+    }
+  }, [latestEvent])
 
   if (!isConnected) return null
   if (!isOwner) return null
@@ -109,12 +96,7 @@ export default function AdminCard() {
     <div className="rounded-lg border p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Admin</h2>
-        <div className="flex items-center gap-2">
-          {isStale ? (
-            <span className="inline-block h-2 w-2 rounded-full bg-amber-500" title="stale" aria-label="stale" />
-          ) : null}
-          <span className="text-xs text-muted-foreground">Owner: {owner}</span>
-        </div>
+        <span className="text-xs text-muted-foreground">Owner: {owner}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
@@ -126,8 +108,8 @@ export default function AdminCard() {
         </div>
         <div className="flex justify-between">
           <span>Drawing</span>
-          <span className={isStageDrawing ? 'text-amber-600' : 'text-muted-foreground'}>
-            {isStageDrawing ? 'In progress' : 'Idle'}
+          <span className={currentDrawing ? 'text-amber-600' : 'text-muted-foreground'}>
+            {currentDrawing ? 'In progress' : 'Idle'}
           </span>
         </div>
         <div className="flex justify-between">
@@ -136,7 +118,7 @@ export default function AdminCard() {
         </div>
         <div className="flex justify-between">
           <span>Balance</span>
-          <span>{loading ? '...' : `${(netHBAR ?? 0).toFixed(6)} HBAR`}</span>
+          <span>{loading ? '...' : `${(balanceHBAR ?? 0).toFixed(6)} HBAR`}</span>
         </div>
         <div className="flex justify-between">
           <span>Fee preview</span>
@@ -161,12 +143,7 @@ export default function AdminCard() {
           onClick={() => setConfirmOpen(true)}
           aria-disabled={!canTrigger}
         >
-          {isStageDrawing ? 'Drawing…' : (
-            <>
-              {busyPulse ? <span className="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/50 border-t-white" /> : null}
-              <span>Trigger Draw</span>
-            </>
-          )}
+          {currentDrawing ? 'Drawing…' : 'Trigger Draw'}
         </button>
       </div>
 
@@ -214,10 +191,21 @@ export default function AdminCard() {
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">isReadyForDraw</span>
-          <span>
+          <span className={readyMismatch ? 'text-red-600 font-medium' : ''}>
             {String(isReadyForDraw)}
           </span>
         </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">isReadyDerived</span>
+          <span className={readyMismatch ? 'text-red-600 font-medium' : ''}>
+            {String(isReadyDerived)}
+          </span>
+        </div>
+        {(readyMismatch || stageMismatch) && (
+          <div className="text-red-600">
+            Warning: readiness mismatch{stageMismatch ? ' (stage not Ready while net ≥ target)' : ''}.
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-muted-foreground">rawHBAR</span>
           <span>{loading ? '...' : `${(rawHBAR ?? 0).toFixed(6)} HBAR`}</span>
@@ -248,6 +236,28 @@ export default function AdminCard() {
           <span className="text-muted-foreground">Participants</span>
           <span>{(participantCount ?? 0).toString()}</span>
         </div>
+        {lastEvent && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Last event</span>
+            <span className="truncate">
+              {lastEvent.name}
+              {lastEvent.blockNumber !== undefined ? ` @#${lastEvent.blockNumber}` : ''}
+              {lastEvent.txHash ? (
+                <>
+                  {' '}
+                  <a
+                    className="underline"
+                    href={getExplorerTxUrl(lastEvent.txHash)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    tx
+                  </a>
+                </>
+              ) : null}
+            </span>
+          </div>
+        )}
         <div className="pt-1">
           <button
             className="inline-flex items-center px-2 py-1 rounded border text-xs"
@@ -294,6 +304,8 @@ export default function AdminCard() {
           </div>
         </div>
       )}
+      {/* Mount a lightweight Toaster trigger to ensure notifications can be shown from here if desired */}
+      <Toaster richColors position="top-right" />
     </div>
   )
 }

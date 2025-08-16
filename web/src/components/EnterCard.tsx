@@ -1,9 +1,8 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAccount, useChainId, useDisconnect } from 'wagmi'
 import useLotteryReads from '@/hooks/useLotteryReads'
 import { useEnterLottery } from '@/hooks/useLotteryWrites'
-import { useLotteryData } from '@/context/LotteryDataContext'
 import { getExplorerTxUrl } from '@/lib/mirror'
 import { useAppKit } from '@reown/appkit/react'
 
@@ -17,39 +16,17 @@ export default function EnterCard() {
     remainingHBAR,
     isFilling,
     isReadyStage,
-    enterable,
     onExpectedNetwork,
     loading: readsLoading,
     error: readsError,
     pendingRefundUserHBAR,
     refetch,
     roundId,
-    participantCount,
-    stageIndex,
   } = useLotteryReads()
   const chainId = useChainId()
   const { address } = useAccount()
   const { disconnect } = useDisconnect()
   const { open } = useAppKit()
-
-  useEffect(() => {
-    try {
-      const headerBtn = typeof document !== 'undefined' ? document.querySelector('header button[aria-haspopup="menu"]') : null
-      const headerText = headerBtn?.textContent?.trim() ?? null
-      console.log('[diag.account.enter]', {
-        component: 'EnterCard',
-        address: address ?? null,
-        headerText,
-        providerWrap: 'WagmiProvider -> QueryClientProvider -> LotteryDataProvider -> WalletSessionGuard',
-      })
-      if (!address) {
-        console.warn('[diag.account.null]', {
-          componentPath: 'web/src/components/EnterCard.tsx',
-          wrappedBy: 'WagmiProvider -> QueryClientProvider -> LotteryDataProvider -> WalletSessionGuard',
-        })
-      }
-    } catch {}
-  }, [address])
 
   // Wallet balance is intentionally not fetched on the client to avoid direct RPCs.
   const balLoading = false
@@ -81,24 +58,12 @@ export default function EnterCard() {
   const [amount, setAmount] = useState<string>('')
   const [submittingLocal, setSubmittingLocal] = useState<boolean>(false)
 
-  // Keep lightweight refs of latest snapshot values so we can detect when the server
-  // has reflected an entered transaction (fast server case).
-  const latestParticipantsRef = useRef<number | undefined>(participantCount)
-  const latestRemainingRef = useRef<number | undefined>(remainingHBAR)
-  const latestStageRef = useRef<number | undefined>(stageIndex)
-
-  useEffect(() => {
-    latestParticipantsRef.current = participantCount
-    latestRemainingRef.current = remainingHBAR
-    latestStageRef.current = stageIndex
-  }, [participantCount, remainingHBAR, stageIndex])
-
   const disableAll = submittingLocal || isPending || isConfirming
   const connected = isConnected && hookConnected
   const canSubmit =
     connected &&
     onExpectedNetwork &&
-    Boolean(enterable) &&
+    isFilling &&
     !disableAll &&
     Number(amount || '0') > 0
 
@@ -110,75 +75,15 @@ export default function EnterCard() {
     return over > 0 ? over : 0
   }, [amount, remainingHBAR])
 
-  const { notifyServerUpdated } = useLotteryData()
-
   const handleEnterClick = async () => {
     if (!canSubmit) return
     if (submittingLocal || isPending || isConfirming) return
-
-    // Snapshot pre-submit server-observed values
-    const preParticipants = latestParticipantsRef.current
-    const preRemaining = latestRemainingRef.current
-    const preStage = latestStageRef.current
-    console.debug('[enter.pre]', { preParticipants, preRemaining, preStage, amount })
-
     setSubmittingLocal(true)
     try {
       const txHash = await enter(amount)
-      console.debug('[enter.txHash]', { txHash })
-
-      // On tx hash returned:
-      // - bump the provider's serverUpdatedCounter promptly so other panels react quickly
-      // - then perform the EnterCard's own awaited refetch() + bounded poll (pattern A)
+      // Do not wait on-chain from the UI; server fan-out will refresh shortly.
       if (txHash) {
-        try {
-          try {
-            notifyServerUpdated()
-          } catch {}
-          await refetch()
-          console.debug('[enter.refetch] completed')
-        } catch (e) {
-          console.debug('[enter.refetch] failed', e)
-        }
-
-        const start = Date.now()
-        const timeoutMs = 12000
-        const intervalMs = 1000
-        let seen = false
-        let reason = ''
-        while (!seen && Date.now() - start < timeoutMs) {
-          await new Promise((res) => setTimeout(res, intervalMs))
-          const curParticipants = latestParticipantsRef.current
-          const curRemaining = latestRemainingRef.current
-          const curStage = latestStageRef.current
-
-          if (typeof preParticipants === 'number' && typeof curParticipants === 'number' && curParticipants > preParticipants) {
-            seen = true
-            reason = 'participants'
-            break
-          }
-          if (typeof preRemaining === 'number' && typeof curRemaining === 'number' && curRemaining < preRemaining) {
-            seen = true
-            reason = 'remaining'
-            break
-          }
-          if (typeof preStage === 'number' && typeof curStage === 'number' && curStage !== preStage) {
-            seen = true
-            reason = 'stage'
-            break
-          }
-        }
-
-        if (seen) {
-          try {
-            reset()
-            console.debug('[enter.reset] called', { reason })
-          } catch (e) {
-            console.debug('[enter.reset] failed', e)
-          }
-        } else {
-          console.debug('[enter.poll] timed out')
-        }
+        await refetch()
       }
     } catch (err: unknown) {
       let message = ''; if (typeof err === 'object' && err && 'message' in err) { const m = (err as { message?: unknown }).message; message = typeof m === 'string' ? m : String(m); } else { message = String(err); }
@@ -219,9 +124,9 @@ export default function EnterCard() {
           </div>
         ) : (
           <>
-            {!enterable && (
+            {isReadyStage && (
               <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                Entries are closed for now. They reopen after the current round lands.
+                Pool is locked and ready for draw. New entries are temporarily disabled.
               </div>
             )}
 

@@ -17,15 +17,6 @@ if (process.env.NODE_ENV !== 'production') {
 }
 export const LOTTERY_ADDRESS = address as `0x${string}`
 
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    console.log('[addr.contracts.lottery]', {
-      LOTTERY_ADDRESS,
-      env_NEXT_PUBLIC_CONTRACT_ADDRESS: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? null,
-    });
-  } catch {}
-}
-
 // Export ABI (typed) from generated JSON
 export const LOTTERY_ABI = (lotteryAbiJson as { abi: Abi }).abi
 

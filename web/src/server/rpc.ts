@@ -23,6 +23,12 @@ export type MinuteSummary = {
 
 type Bucket = { tokens: number; lastRefill: number };
 
+const PROVIDER_SENTINEL = (() => {
+  // eslint-disable-next-line no-console
+  console.debug('[rpc] provider wrapper module initialized');
+  return Symbol('provider_sentinel');
+})();
+
 // Expose a single public client instance (re-exported from lib/wagmi).
 export const rpcClient = baseClient;
 
@@ -111,7 +117,7 @@ function normBlockTag(v: unknown): string | number {
 export async function getBlockNumberWithTelemetry(headers: Headers) {
   const { ip, requestId } = parseCaller(headers);
   try {
-    const bn = await rpcClient["getBlockNumber"]();
+    const bn = await rpcClient.getBlockNumber();
     recordTelemetry({
       ts: Date.now(),
       method: 'getBlockNumber',
@@ -140,7 +146,7 @@ export async function multicallWithTelemetry<T>(
 ) {
   const { ip, requestId } = parseCaller(headers);
   try {
-    const res = await rpcClient["multicall"](args);
+    const res = await rpcClient.multicall(args);
     recordTelemetry({
       ts: Date.now(),
       method: 'multicall',

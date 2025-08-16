@@ -4,7 +4,8 @@ import { useCallback } from 'react';
 import type { Address } from 'viem';
 import { parseEther } from 'viem';
 import { useWriteContract } from 'wagmi';
-import { LOTTERY_ABI, LOTTERY_ADDRESS } from '@/lib/contracts/lottery';
+import { LOTTERY_ABI } from '@/lib/contracts/lottery';
+import { LOTTERY_ADDRESS } from '@/lib/hedera';
 import { useLotteryData } from '@/context/LotteryDataContext';
 
 /** Hedera native decimals (HBAR tinybars) */
@@ -34,13 +35,13 @@ export function useEnterLottery() {
   const enter = useCallback(
     async (amountHBAR: string | number) => {
       if (!LOTTERY_ADDRESS) {
-        throw new Error('Missing NEXT_PUBLIC_CONTRACT_ADDRESS');
+        throw new Error('Missing NEXT_PUBLIC_LOTTERY_ADDRESS');
       }
       if (LOTTERY_ADDRESS.startsWith('0.0.')) {
-        throw new Error('NEXT_PUBLIC_CONTRACT_ADDRESS must be an EVM 0x address, not 0.0.x');
+        throw new Error('NEXT_PUBLIC_LOTTERY_ADDRESS must be an EVM 0x address, not 0.0.x');
       }
       if (!/^0x[a-fA-F0-9]{40}$/.test(LOTTERY_ADDRESS)) {
-        throw new Error('Invalid NEXT_PUBLIC_CONTRACT_ADDRESS: expected 0x-prefixed EVM address');
+        throw new Error('Invalid NEXT_PUBLIC_LOTTERY_ADDRESS: expected 0x-prefixed EVM address');
       }
       // Normalize user input (strip grouping spaces/commas/underscores) before unit parsing
       const raw = String(amountHBAR);
@@ -114,7 +115,7 @@ export function useLotteryWrites() {
 
   const triggerDraw = useCallback(async () => {
     if (!LOTTERY_ADDRESS) {
-      throw new Error('Missing NEXT_PUBLIC_CONTRACT_ADDRESS');
+      throw new Error('Missing NEXT_PUBLIC_LOTTERY_ADDRESS');
     }
     // Solidity: function triggerDraw() external {}
     return await writeContractAsync({

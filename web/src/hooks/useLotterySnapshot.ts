@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // Dev-only assertions verifying merge semantics for falsy values
 if (process.env.NODE_ENV !== 'production') {
@@ -8,6 +8,7 @@ if (process.env.NODE_ENV !== 'production') {
     const prev = { participantCount: 5, isDrawing: true, anyArr: [1], anyBig: 7n };
     const curZero = { participantCount: 0 };
     // 0 overwrites
+    // eslint-disable-next-line no-console
     console.assert((curZero.participantCount ?? prev.participantCount) === 0, '[assert] 0 should overwrite lastGood');
     const curFalse = { isDrawing: false };
     console.assert((curFalse.isDrawing ?? prev.isDrawing) === false, '[assert] false should overwrite lastGood');
@@ -25,8 +26,7 @@ export type LotterySnapshot = {
   owner?: `0x${string}`;
   isReadyForDraw?: boolean;
   isDrawing?: boolean;
-  participantCount?: number; // on-chain
-  participantsCount?: number; // derived unique from entries
+  participantCount?: number;
   stageIndex?: number;
   roundId?: number;
   pendingRefundsTotalWei?: bigint;
@@ -37,41 +37,6 @@ export type LotterySnapshot = {
   // From debugUnits()
   balanceWeiTiny?: bigint;
   netWeiTiny?: bigint;
-
-  // Derived/extra
-  stage?: 'Filling' | 'Ready' | 'Drawing';
-  openAt?: number;
-  lockAt?: number;
-  revealTargetAt?: number;
-  reopenAt?: number;
-  enterable?: boolean;
-  participants?: (`0x${string}`)[];
-  netBalance?: bigint;
-  orphanedBalance?: bigint;
-
-  // Canonical normalized wheel segments (address,start,end in 0..1)
-  segments?: Array<{
-    address: `0x${string}`;
-    start: number;
-    end: number;
-  }>;
-
-  // Server-provided wheel layout (JSON-safe only; no client recomputation)
-  layout?: {
-    roundId?: number;
-    totalBn?: string;
-    segments: Array<{
-      id: string;
-      addressLower?: `0x${string}`;
-      sumBn: string;
-      percent: number;
-      startDeg: number;
-      endDeg: number;
-      label?: string;
-    }>;
-  };
-  layoutHash?: string;
-  segmentsHash?: string;
 
   // react-query-like meta
   isLoading: boolean;
@@ -84,13 +49,6 @@ export type LotterySnapshot = {
 
   // stale-but-visible indicator
   isStale: boolean;
-
-  // Fresh snapshot metadata (most recent non-stale snapshot observed)
-  snapshotEtag?: string;
-  snapshotHash?: string;
-  snapshotLayoutHash?: string;
-  snapshotSegmentsHash?: string;
-  snapshotBlockNumber?: number;
 };
 
 /**
@@ -124,37 +82,14 @@ export default function useLotterySnapshot(
   const lastBlockRef = useRef<number | undefined>(undefined);
   const lastHashRef = useRef<string | undefined>(undefined);
   const lastEtagRef = useRef<string | undefined>(undefined);
-  // lastFresh*: baseline from the most recent non-stale (stale:0) snapshot
-  const lastFreshRef = useRef<Parsed | undefined>(undefined);
-  const lastFreshEtagRef = useRef<string | undefined>(undefined);
-  const lastFreshHashRef = useRef<string | undefined>(undefined);
-  const lastFreshLayoutHashRef = useRef<string | undefined>(undefined);
-  const lastFreshSegmentsHashRef = useRef<string | undefined>(undefined);
-  const lastFreshBlockRef = useRef<number | undefined>(undefined);
   const [stale, setStale] = useState<boolean>(false);
 
   // last good parsed
-  type SpinLandingPlan = {
-    layoutHash: string;
-    targetSegmentId: string;
-    startAt: number;
-    durationMs: number;
-    easing: 'easeOutCubic';
-    rotations: number;
-  };
-  type Spin = {
-    phase: 'idle' | 'neutral' | 'landing' | 'done';
-    neutralStartAt?: number;
-    revealTargetAt?: number;
-    landingPlan?: SpinLandingPlan;
-  };
-
   type Parsed = {
     owner?: `0x${string}`;
     isReadyForDraw?: boolean;
     isDrawing?: boolean;
     participantCount?: number;
-    participantsCount?: number;
     stageIndex?: number;
     roundId?: number;
     pendingRefundsTotalWei?: bigint;
@@ -163,53 +98,16 @@ export default function useLotterySnapshot(
     balanceWeiTiny?: bigint;
     netWeiTiny?: bigint;
     blockNumber?: number;
-
-    stage?: 'Filling' | 'Ready' | 'Drawing';
-    openAt?: number;
-    lockAt?: number;
-    revealTargetAt?: number;
-    reopenAt?: number;
-    enterable?: boolean;
-    participants?: (`0x${string}`)[];
-    netBalance?: bigint;
-    orphanedBalance?: bigint;
-
-    // Canonical normalized segments
-    segments?: Array<{
-      address: `0x${string}`;
-      start: number;
-      end: number;
-    }>;
-
-    layout?: {
-      roundId?: number;
-      totalBn?: string;
-      segments: Array<{
-        id: string;
-        addressLower?: `0x${string}`;
-        sumBn: string;
-        percent: number;
-        startDeg: number;
-        endDeg: number;
-        label?: string;
-      }>;
-    };
-    layoutHash?: string;
-    segmentsHash?: string;
-
-    // optional spin session from server + server time
-    spin?: Spin;
-    serverNowMs?: number;
   };
   const lastGoodRef = useRef<Parsed | undefined>(undefined);
 
-  const parsePayload = useCallback((json: unknown): Parsed => {
+  const parsePayload = (json: unknown): Parsed => {
     const j = (json ?? {}) as Record<string, unknown>;
-
     const toBig = (v: unknown): bigint | undefined => {
       try {
         if (typeof v === 'bigint') return v;
         if (typeof v === 'string' && v !== '') {
+          // Accept canonical "bn:<decimal>" and plain decimal strings
           if (v.startsWith('bn:')) return BigInt(v.slice(3));
           return BigInt(v);
         }
@@ -218,17 +116,14 @@ export default function useLotterySnapshot(
         return undefined;
       }
     };
-
     const toNum = (v: unknown): number | undefined => {
       const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : undefined;
       return Number.isFinite(n as number) ? (n as number) : undefined;
     };
-
     const owner = (j.owner as `0x${string}` | undefined) ?? undefined;
     const isReadyForDraw = typeof j.isReadyForDraw === 'boolean' ? j.isReadyForDraw : undefined;
     const isDrawing = typeof j.isDrawing === 'boolean' ? j.isDrawing : undefined;
     const participantCount = toNum(j.participantCount);
-    const participantsCount = toNum((j as Record<string, unknown>)['participantsCount']);
     const stageIndex = toNum(j.stageIndex);
     const roundId = toNum(j.roundId);
     const pendingRefundsTotalWei = toBig(j.pendingRefundsTotalWei);
@@ -236,103 +131,11 @@ export default function useLotterySnapshot(
     const balanceWeiTiny = toBig(j.balanceWeiTiny);
     const netWeiTiny = toBig(j.netWeiTiny);
     const blockNumber = toNum(j.blockNumber);
-
-    // Layout (JSON-safe only; always expose with concrete segments array)
-    const layoutRaw = j.layout as Record<string, unknown> | undefined;
-
-    let layoutSegments: NonNullable<Parsed['layout']>['segments'] = [];
-    if (layoutRaw && typeof layoutRaw === 'object') {
-      const maybeSegs = (layoutRaw as { segments?: unknown } | undefined)?.segments;
-      const segs = Array.isArray(maybeSegs) ? (maybeSegs as unknown[]) : [];
-      layoutSegments = segs
-        .map((s) => {
-          const x = (s ?? {}) as Record<string, unknown>;
-          const id = typeof x.id === 'string' ? x.id : '';
-          if (!id) return undefined;
-          const addressLower = typeof x.addressLower === 'string' ? (x.addressLower as `0x${string}`) : undefined;
-          const sumBn = typeof x.sumBn === 'string' ? x.sumBn : 'bn:0';
-          const percent = typeof x.percent === 'number' ? x.percent : Number(x.percent ?? 0) || 0;
-          const startDeg = typeof x.startDeg === 'number' ? x.startDeg : Number(x.startDeg ?? 0) || 0;
-          const endDeg = typeof x.endDeg === 'number' ? x.endDeg : Number(x.endDeg ?? 0) || 0;
-          const label = typeof x.label === 'string' ? x.label : undefined;
-          return { id, addressLower, sumBn, percent, startDeg, endDeg, label };
-        })
-        .filter(Boolean) as NonNullable<Parsed['layout']>['segments'];
-    }
-
-    const layout: Parsed['layout'] = {
-      roundId: toNum(layoutRaw?.roundId) ?? roundId,
-      totalBn: typeof layoutRaw?.totalBn === 'string' ? (layoutRaw.totalBn as string) : undefined,
-      segments: layoutSegments,
-    };
-
-    const layoutHash = typeof j.layoutHash === 'string' ? (j.layoutHash as string) : undefined;
-    const segmentsHash = typeof (j as Record<string, unknown>).segmentsHash === 'string'
-      ? ((j as Record<string, unknown>).segmentsHash as string)
-      : undefined;
-
-    // Spin (JSON-safe)
-    let spin: Parsed['spin'] | undefined = undefined;
-    const spinRaw = j.spin as Record<string, unknown> | undefined;
-    if (spinRaw && typeof spinRaw === 'object') {
-      const phaseStr = String(spinRaw['phase'] ?? '');
-      const phase = phaseStr === 'idle' || phaseStr === 'neutral' || phaseStr === 'landing' || phaseStr === 'done' ? phaseStr : undefined;
-      const neutralStartAt = typeof spinRaw['neutralStartAt'] === 'number' ? (spinRaw['neutralStartAt'] as number) : undefined;
-      const revealTargetAt = typeof spinRaw['revealTargetAt'] === 'number' ? (spinRaw['revealTargetAt'] as number) : undefined;
-      const lpRaw = spinRaw['landingPlan'] as Record<string, unknown> | undefined;
-      let landingPlan: SpinLandingPlan | undefined = undefined;
-      if (lpRaw && typeof lpRaw === 'object') {
-        const lh = typeof lpRaw['layoutHash'] === 'string' ? (lpRaw['layoutHash'] as string) : undefined;
-        const ts = typeof lpRaw['targetSegmentId'] === 'string' ? (lpRaw['targetSegmentId'] as string) : undefined;
-        const sa = typeof lpRaw['startAt'] === 'number' ? (lpRaw['startAt'] as number) : undefined;
-        const du = typeof lpRaw['durationMs'] === 'number' ? (lpRaw['durationMs'] as number) : undefined;
-        const ez = typeof lpRaw['easing'] === 'string' ? (lpRaw['easing'] as string) : undefined;
-        const ro = typeof lpRaw['rotations'] === 'number' ? (lpRaw['rotations'] as number) : undefined;
-        if (lh && ts && typeof sa === 'number' && typeof du === 'number') {
-          landingPlan = { layoutHash: lh, targetSegmentId: ts, startAt: sa, durationMs: du, easing: (ez ?? 'easeOutCubic') as 'easeOutCubic', rotations: ro ?? 0 };
-        }
-      }
-      if (phase) {
-        spin = { phase, neutralStartAt, revealTargetAt, landingPlan };
-      }
-    }
-
-    // Derived extras
-    const stageStr = typeof j['stage'] === 'string' ? (j['stage'] as 'Filling' | 'Ready' | 'Drawing') : undefined;
-    const openAt = toNum(j['openAt']);
-    const lockAt = toNum(j['lockAt']);
-    const revealTargetAt = toNum(j['revealTargetAt']);
-    const reopenAt = toNum(j['reopenAt']);
-    const enterable = typeof j['enterable'] === 'boolean' ? (j['enterable'] as boolean) : undefined;
-    const netBalance = toBig(j['netBalance']);
-    const orphanedBalance = toBig(j['orphanedBalance']);
-
-    const participants = Array.isArray((j as Record<string, unknown>)['participants'])
-      ? ((j as Record<string, unknown>)['participants'] as unknown[])
-          .map((x) => (typeof x === 'string' ? (x as `0x${string}`) : undefined))
-          .filter(Boolean) as (`0x${string}`)[]
-      : undefined;
-
-    // Canonical normalized segments (top-level)
-    let segments: Parsed['segments'] = undefined;
-    const segsMaybe = (j as Record<string, unknown>)['segments'];
-    if (Array.isArray(segsMaybe)) {
-      segments = (segsMaybe as unknown[]).map((s) => {
-        const x = (s ?? {}) as Record<string, unknown>;
-        const address = typeof x['address'] === 'string' ? (x['address'] as `0x${string}`) : (undefined as unknown as `0x${string}`);
-        const start = toNum(x['start']) ?? 0;
-        const end = toNum(x['end']) ?? 0;
-        if (!address) return undefined as unknown as { address: `0x${string}`; start: number; end: number };
-        return { address, start, end };
-      }).filter(Boolean) as NonNullable<Parsed['segments']>;
-    }
-
     return {
       owner,
       isReadyForDraw,
       isDrawing,
       participantCount,
-      participantsCount,
       stageIndex,
       roundId,
       pendingRefundsTotalWei,
@@ -341,24 +144,10 @@ export default function useLotterySnapshot(
       balanceWeiTiny,
       netWeiTiny,
       blockNumber,
-      stage: stageStr,
-      openAt,
-      lockAt,
-      revealTargetAt,
-      reopenAt,
-      enterable,
-      participants,
-      netBalance,
-      orphanedBalance,
-      segments,
-      layout,
-      layoutHash,
-      segmentsHash,
-      spin,
     };
-  }, []);
+  };
 
-  const mergeWithLastGood = useCallback((current: Parsed): { merged: Parsed; usedFallback: boolean } => {
+  const mergeWithLastGood = (current: Parsed): { merged: Parsed; usedFallback: boolean } => {
     const prev = lastGoodRef.current;
     if (!prev) return { merged: current, usedFallback: false };
     // Hard boundary between rounds: never inherit across different roundId
@@ -366,24 +155,12 @@ export default function useLotterySnapshot(
       return { merged: current, usedFallback: false };
     }
     let used = false;
-
-    // Resolve stageIndex that will be used in the merged snapshot
-    const stageIndexNext = current.stageIndex ?? prev.stageIndex ?? undefined;
-
-    // Rule of truth: "Pool is Filling until it reaches the target; then it locks."
-    // Never carry a previous lockAt into the Filling stage (stageIndex === 0).
-    const lockAtValue =
-      typeof stageIndexNext === 'number' && stageIndexNext === 0
-        ? undefined
-        : (current.lockAt ?? prev.lockAt ?? undefined);
-
     const merged: Parsed = {
       owner: current.owner ?? prev.owner ?? undefined,
       isReadyForDraw: current.isReadyForDraw ?? prev.isReadyForDraw ?? undefined,
       isDrawing: current.isDrawing ?? prev.isDrawing ?? undefined,
       participantCount: current.participantCount ?? prev.participantCount ?? undefined,
-      participantsCount: current.participantsCount ?? prev.participantsCount ?? undefined,
-      stageIndex: stageIndexNext,
+      stageIndex: current.stageIndex ?? prev.stageIndex ?? undefined,
       roundId: current.roundId ?? prev.roundId ?? undefined,
       pendingRefundsTotalWei: current.pendingRefundsTotalWei ?? prev.pendingRefundsTotalWei ?? undefined,
       poolTargetWei: current.poolTargetWei ?? prev.poolTargetWei ?? undefined,
@@ -391,26 +168,6 @@ export default function useLotterySnapshot(
       balanceWeiTiny: current.balanceWeiTiny ?? prev.balanceWeiTiny ?? undefined,
       netWeiTiny: current.netWeiTiny ?? prev.netWeiTiny ?? undefined,
       blockNumber: current.blockNumber ?? prev.blockNumber ?? undefined,
-
-      stage: current.stage ?? prev.stage,
-      openAt: current.openAt ?? prev.openAt,
-      lockAt: lockAtValue,
-      revealTargetAt: current.revealTargetAt ?? prev.revealTargetAt,
-      reopenAt: current.reopenAt ?? prev.reopenAt,
-      enterable: current.enterable ?? prev.enterable,
-      participants: current.participants ?? prev.participants,
-      netBalance: current.netBalance ?? prev.netBalance,
-      orphanedBalance: current.orphanedBalance ?? prev.orphanedBalance,
-
-      // Carry canonical normalized segments change-only
-      segments: current.segments ?? prev.segments,
-
-      layout: current.layout ?? prev.layout,
-      layoutHash: current.layoutHash ?? prev.layoutHash,
-      segmentsHash: current.segmentsHash ?? prev.segmentsHash,
-
-      spin: current.spin ?? prev.spin,
-      serverNowMs: current.serverNowMs ?? prev.serverNowMs,
     };
     for (const k of Object.keys(merged) as (keyof Parsed)[]) {
       if (current[k] === undefined && prev[k] !== undefined) {
@@ -419,7 +176,7 @@ export default function useLotterySnapshot(
       }
     }
     return { merged, usedFallback: used };
-  }, []);
+  };
 
   // Fetcher
   const doFetch = useCallback(async () => {
@@ -440,7 +197,7 @@ export default function useLotterySnapshot(
       try {
         const res = await fetch('/api/snapshot', {
           cache: 'no-store',
-          headers: lastFreshEtagRef.current ? { 'If-None-Match': lastFreshEtagRef.current } : undefined,
+          headers: lastEtagRef.current ? { 'If-None-Match': lastEtagRef.current } : undefined,
         });
 
         const status = res.status;
@@ -451,10 +208,6 @@ export default function useLotterySnapshot(
         const hBlock = hBlockRaw != null && hBlockRaw !== '' ? Number(hBlockRaw) : undefined;
         const hHash = hdr.get('x-snapshot-hash') ?? undefined;
         const hEtag = hdr.get('etag') ?? undefined;
-        const hLayoutHash = hdr.get('x-layout-hash') ?? undefined;
-        const hSegmentsHash = hdr.get('x-segments-hash') ?? undefined;
-        const hNowRaw = hdr.get('x-now');
-        const hNow = hNowRaw != null && hNowRaw !== '' ? Number(hNowRaw) : undefined;
 
         // Always update rateLimited and isStale from dedicated headers
         setRateLimited(hRateLimited);
@@ -467,61 +220,19 @@ export default function useLotterySnapshot(
 
         const json = await res.json();
         const parsed = parsePayload(json);
-        if (typeof hNow === 'number' && Number.isFinite(hNow)) {
-          (parsed as Parsed).serverNowMs = hNow;
-        }
-        // Debug logs: surface network vs parsed snapshot for diagnosis
-        try {
-          console.debug('[useLotterySnapshot.fetch]', {
-            status,
-            hBlock,
-            hHash,
-            hEtag,
-            hLayoutHash,
-            hSegmentsHash,
-            hNow,
-            parsedSegmentsLen: Array.isArray((parsed as Parsed).segments) ? ((parsed as Parsed).segments!.length) : 0,
-            parsedLayoutLen: Array.isArray((parsed as Parsed).layout?.segments) ? (parsed as Parsed).layout!.segments.length : 0,
-            parsedSpinPhase: (parsed as Parsed).spin?.phase ?? null,
-            parsedFirstSegment: Array.isArray((parsed as Parsed).segments) ? ((parsed as Parsed).segments![0] ?? null) : null,
-          });
-        } catch {}
 
         // Change-only updates:
-        // Apply updates whenever the fresh-baseline (lastFresh) changes. Stale responses should not
-        // overwrite the user's semantic view. Compare headers against lastFresh* refs so stale bodies
-        // are only used for metadata / scheduling.
+        // Apply updates whenever ETag or x-snapshot-hash changes, even if response is stale.
         const shouldUpdate =
-          (hEtag !== undefined && hEtag !== lastFreshEtagRef.current) ||
-          (hHash !== undefined && hHash !== lastFreshHashRef.current) ||
-          (typeof hLayoutHash === 'string' && hLayoutHash !== (lastFreshRef.current as Parsed | undefined)?.layoutHash) ||
-          (typeof hSegmentsHash === 'string' && hSegmentsHash !== (lastFreshRef.current as Parsed | undefined)?.segmentsHash);
+          (hEtag !== undefined && hEtag !== lastEtagRef.current) ||
+          (hHash !== undefined && hHash !== lastHashRef.current);
 
         if (shouldUpdate) {
-          const next = { ...parsed };
-          if (typeof hLayoutHash === 'string') next.layoutHash = hLayoutHash;
-          if (typeof hSegmentsHash === 'string') next.segmentsHash = hSegmentsHash;
-          const { merged } = mergeWithLastGood(next);
-
-          // Adopt as fresh baseline only when the server explicitly marked this response as non-stale,
-          // or if we don't yet have any fresh baseline at all (first good snapshot).
-          if (!hStale || lastFreshRef.current === undefined) {
-            lastGoodRef.current = merged;
-            lastFreshRef.current = merged;
-            lastFreshEtagRef.current = hEtag ?? lastFreshEtagRef.current;
-            lastFreshHashRef.current = hHash ?? lastFreshHashRef.current;
-            lastFreshLayoutHashRef.current = hLayoutHash ?? lastFreshLayoutHashRef.current;
-            lastFreshSegmentsHashRef.current = hSegmentsHash ?? lastFreshSegmentsHashRef.current;
-            lastFreshBlockRef.current = hBlock ?? merged.blockNumber ?? lastFreshBlockRef.current;
-            lastBlockRef.current = lastFreshBlockRef.current;
-            lastHashRef.current = lastFreshHashRef.current;
-            lastEtagRef.current = lastFreshEtagRef.current;
-          } else {
-            // Stale response: keep lastFresh as the source of truth for user-facing fields.
-            try {
-              console.debug('[useLotterySnapshot.stale_received]', { hBlock, hHash, hEtag });
-            } catch {}
-          }
+          const { merged } = mergeWithLastGood(parsed);
+          lastGoodRef.current = merged;
+          lastBlockRef.current = hBlock ?? merged.blockNumber ?? lastBlockRef.current;
+          lastHashRef.current = hHash ?? lastHashRef.current;
+          lastEtagRef.current = hEtag ?? lastEtagRef.current;
         }
       } catch (err) {
         setError(err as Error);
@@ -538,7 +249,7 @@ export default function useLotterySnapshot(
     } finally {
       inFlightRef.current = null;
     }
-  }, [enabled, mergeWithLastGood, parsePayload]);
+  }, [enabled]);
 
   // Poll modestly; server will dedupe per block and fallback after 20s of no blocks.
   useEffect(() => {
@@ -556,7 +267,9 @@ export default function useLotterySnapshot(
   }, [enabled, doFetch]);
 
   // Current parsed (may be empty on first load)
-  const current: Parsed = lastFreshRef.current ?? lastGoodRef.current ?? {};
+  const current: Parsed = useMemo(() => {
+    return lastGoodRef.current ?? {};
+  }, [lastGoodRef.current]);
 
   // Disabled or no contract
   if (!enabled) {
@@ -575,17 +288,11 @@ export default function useLotterySnapshot(
   // Partial sticky merge already baked into lastGoodRef; reflect stale if rateLimited true
   return {
     ...current,
-    isLoading: loading && !lastFreshRef.current && !lastGoodRef.current, // never skeleton during refetch after first good snapshot
+    isLoading: loading && !lastGoodRef.current, // never skeleton during refetch after first good snapshot
     error,
     refetch,
     rateLimited, // banner only when server explicitly signals rate-limited
     rateLimitedUntil: undefined,
     isStale: stale, // tiny amber dot only when serving lastGood from server (stale)
-    // Expose fresh-baseline metadata so consumers can reason about etags/hashes/blockNumbers
-    snapshotEtag: lastFreshEtagRef.current ?? lastEtagRef.current ?? undefined,
-    snapshotHash: lastFreshHashRef.current ?? lastHashRef.current ?? undefined,
-    snapshotLayoutHash: lastFreshLayoutHashRef.current ?? undefined,
-    snapshotSegmentsHash: lastFreshSegmentsHashRef.current ?? undefined,
-    snapshotBlockNumber: lastFreshBlockRef.current ?? lastBlockRef.current ?? undefined,
   } as LotterySnapshot;
 }

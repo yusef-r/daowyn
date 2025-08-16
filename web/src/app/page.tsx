@@ -4,7 +4,6 @@ import StatusCard from "@/components/StatusCard";
 import WinnerCard from "@/components/WinnerCard";
 import EnterCard from "@/components/EnterCard";
 import AdminCard from "@/components/AdminCard";
-import WheelPanel from "@/components/WheelPanel";
 
 export default function Home() {
   const { address, isConnected } = useAccount();
@@ -21,7 +20,6 @@ export default function Home() {
       </p>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <WheelPanel className="md:col-span-2" />
         <StatusCard />
         <WinnerCard />
       </div>

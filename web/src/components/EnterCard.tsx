@@ -203,7 +203,9 @@ export default function EnterCard() {
                 onClick={handleEnterClick}
                 disabled={!canSubmit}
                 className={`inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
-                  canSubmit ? 'hover:bg-muted' : 'opacity-60'
+                  canSubmit
+                    ? 'bg-green-600 text-white hover:bg-green-700 border-transparent cursor-pointer'
+                    : 'bg-green-600 text-white opacity-50 cursor-not-allowed'
                 }`}
               >
                 {disableAll ? 'Submitting...' : 'Enter Pool'}
@@ -248,3 +250,4 @@ export default function EnterCard() {
     </div>
   )
 }
+

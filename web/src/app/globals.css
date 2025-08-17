@@ -122,15 +122,68 @@
 }
 
 /* Progress bar enhancements */
-.progress-fill {
-  background: linear-gradient(90deg, var(--chart-2), var(--chart-4), var(--chart-1));
-  background-size: 200% 100%;
-  animation: progressShift 6s linear infinite;
-  box-shadow: 0 8px 24px rgba(99,102,241,0.16), 0 0 18px rgba(99,102,241,0.08);
+/* Track: cool neutral for contrast and accessibility */
+.progress-track {
+  background: #EEF2FF; /* cool neutral track */
+  height: 100%;
+  border-radius: 9999px;
   position: relative;
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
 }
 
+/* Fill: dynamic emerald → gold gradient with inner white border and glow support */
+.progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  transition: width 600ms cubic-bezier(.2,.9,.2,1), box-shadow 320ms ease, filter 320ms ease;
+  background-size: 200% 100%;
+  /* subtle default glow and a faint inner white border for contrast */
+  box-shadow: 0 8px 24px rgba(34,197,94,0.12), inset 0 0 0 1px rgba(255,255,255,0.6);
+}
+
+/* Pulse the gold end: short saturated glow when >=90% */
+.pulse-gold {
+  animation: pulseGold 450ms ease 1;
+}
+@keyframes pulseGold {
+  0% {
+    transform: translateZ(0);
+    filter: saturate(1);
+    box-shadow: 0 8px 24px rgba(34,197,94,0.12), inset 0 0 0 1px rgba(255,255,255,0.6);
+  }
+  50% {
+    filter: saturate(1.25);
+    box-shadow: 0 18px 48px rgba(255,216,77,0.28), inset 0 0 0 1px rgba(255,255,255,0.95);
+  }
+  100% {
+    filter: saturate(1);
+    box-shadow: 0 8px 24px rgba(34,197,94,0.12), inset 0 0 0 1px rgba(255,255,255,0.6);
+  }
+}
+
+/* Diagonal stripes (low opacity) for color-vision accessibility */
+.progress-stripes {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255,255,255,0.06) 0px,
+    rgba(255,255,255,0.06) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  opacity: 0.08;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* Leading-edge glint (only rendered when enabled by JS at >=80%) */
 .progress-glint {
   position: absolute;
   left: -40%;
@@ -138,25 +191,169 @@
   width: 40%;
   height: 100%;
   transform: skewX(-20deg);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
-  filter: blur(8px);
-  opacity: 0.8;
-  animation: glint 3s linear infinite;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), rgba(255,245,200,0.45), transparent);
+  filter: blur(6px);
+  opacity: 0;
+  animation: glint 2s linear infinite;
   pointer-events: none;
 }
+@keyframes glint {
+  0% { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+  40% { opacity: 0.9; }
+  100% { transform: translateX(220%) skewX(-20deg); opacity: 0; }
+}
 
+/* Goal tick: thin vertical gold marker at the target */
+.goal-tick {
+  position: absolute;
+  top: 6%;
+  bottom: 6%;
+  width: 1px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #FACC15, #FFD84D);
+  box-shadow: 0 6px 18px rgba(250,204,21,0.12);
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0.98;
+  transition: transform 240ms ease, box-shadow 240ms ease, opacity 200ms ease;
+}
+.tick-pulse {
+  animation: tickPulse 420ms ease 1;
+}
+@keyframes tickPulse {
+  0% { transform: translateX(-50%) scaleY(1); box-shadow: 0 6px 18px rgba(250,204,21,0.12); }
+  50% { transform: translateX(-50%) scaleY(1.25); box-shadow: 0 18px 36px rgba(255,216,77,0.28); }
+  100% { transform: translateX(-50%) scaleY(1); box-shadow: 0 6px 18px rgba(250,204,21,0.12); }
+}
+
+/* Gentle shifting shimmer for subtle motion when fill changes */
 @keyframes progressShift {
   0% { background-position: 0% 50%; }
   100% { background-position: 100% 50%; }
-}
-
-@keyframes glint {
-  0% { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
-  50% { opacity: 0.9; }
-  100% { transform: translateX(220%) skewX(-20deg); opacity: 0; }
 }
 
 /* Overlay text enhancements */
 .progress-overlay {
   text-shadow: 0 1px 0 rgba(0,0,0,0.35);
 }
+
+/* LivePanel tokens & utilities */
+:root {
+  --lp-card-bg: rgba(99,102,241,0.04);
+  --lp-card-bg-strong: rgba(99,102,241,0.08);
+  --lp-winner-gold: #FFD166;
+  --lp-avatar-bg: rgba(99,102,241,0.12);
+  --lp-bubble-bg: rgba(99,102,241,0.03);
+  --lp-bubble-bg-dark: rgba(255,255,255,0.03);
+  --lp-accent: var(--chart-4);
+  --lp-radius: 0.75rem;
+  --lp-gap: 0.75rem;
+  --lp-avatar-size: 36px;
+}
+
+/* LivePanel component styles */
+.live-section {
+  background: var(--lp-card-bg);
+  border-radius: var(--lp-radius);
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  transition: background-color 140ms ease, transform 120ms ease;
+}
+.dark .live-section {
+  background: var(--lp-card-bg-strong);
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+/* Use subtle background accent instead of a yellow/strong left border.
+   Provide a soft inner accent band via padding + subtle overlay color. */
+.section-accent {
+  background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,0) 6px, rgba(255,255,255,0.015) 6px);
+  padding-left: 0.5rem;
+  border-radius: calc(var(--lp-radius) - 2px);
+}
+
+/* Feed / timeline */
+.feed-list {
+  max-height: 16.8rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.feed-item {
+  display: flex;
+  gap: var(--lp-gap);
+  align-items: flex-start;
+  padding: 0.5rem;
+  border-radius: 0.6rem;
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.feed-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+}
+
+/* Avatar */
+.avatar {
+  width: var(--lp-avatar-size);
+  height: var(--lp-avatar-size);
+  min-width: var(--lp-avatar-size);
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--foreground);
+  background: var(--lp-avatar-bg);
+  font-size: 0.82rem;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Bubble */
+.feed-bubble {
+  background: var(--lp-bubble-bg);
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.75rem;
+  max-width: 100%;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+  font-size: 0.95rem;
+}
+
+.dark .feed-bubble {
+  background: var(--lp-bubble-bg-dark);
+}
+
+/* Timestamp */
+.feed-ts {
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  margin-top: 0.25rem;
+}
+
+/* Trophy / winner icon */
+.trophy-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--lp-winner-gold);
+  margin-right: 0.35rem;
+}
+
+/* New-item animation */
+@keyframes lp-new {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.feed-item.new { animation: lp-new 260ms ease-out; }
+
+/* Helper small utilities */
+.lp-muted { color: var(--muted-foreground); font-size: 0.9rem; }

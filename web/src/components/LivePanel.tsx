@@ -5,13 +5,12 @@ import { useAccount } from 'wagmi'
 import { formatUnits } from 'viem'
 import useLotteryReads from '@/hooks/useLotteryReads'
 import { useEvents } from '@/app/providers/events'
-import WinnerCard from '@/components/WinnerCard'
 import type { FeedEntry } from '@/types/feed'
 import { LOTTERY_ADDRESS, LOTTERY_ABI } from '@/lib/contracts/lottery'
 
 export default function LivePanel() {
   const { address } = useAccount()
-  const { netHBAR, targetHBAR, roundId } = useLotteryReads()
+  const { netHBAR, roundId } = useLotteryReads()
   const { events } = useEvents()
 
   // Prefer canonical roundId from snapshot when available.
@@ -84,18 +83,28 @@ export default function LivePanel() {
     // (shouldn't happen, but safe-guarding UI).
   }
 
-  const chancePercent = useMemo(() => {
-    if (!targetHBAR || targetHBAR === 0) return 0
-    return (userHBAR / targetHBAR) * 100
-  }, [userHBAR, targetHBAR])
-
-  const recentEntered = enteredEvents.slice(0, 4)
-
+  // Make the panel more compact to better match the Prize Pool card height.
+  // Show a slightly larger history in the live panel so more activity is visible.
+  const recentEntered = enteredEvents.slice(0, 5)
+  const recentWinners = useMemo(
+    () => currentRoundEvents.filter((e) => e.type === 'WinnerPicked').slice(0, 5) as FeedEntry[],
+    [currentRoundEvents]
+  )
+  const recentActivity = useMemo(() => {
+    const combined = [...recentEntered, ...recentWinners]
+    combined.sort((a, b) => {
+      const aTs = Number(a.timestamp ?? (typeof a.blockNumber === 'number' ? a.blockNumber : 0))
+      const bTs = Number(b.timestamp ?? (typeof b.blockNumber === 'number' ? b.blockNumber : 0))
+      return bTs - aTs
+    })
+    return combined.slice(0, 5)
+  }, [recentEntered, recentWinners])
+ 
   const formatShort = (addr?: string) => {
     if (!addr) return ''
     return addr.length > 10 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr
   }
-
+ 
   const formatAmount = (a?: bigint | number) => {
     try {
       if (a === undefined || a === null) return ''
@@ -111,60 +120,75 @@ export default function LivePanel() {
     }
   }
 
+  const getInitials = (addr?: string) => {
+    if (!addr) return '??'
+    try {
+      const cleaned = String(addr).replace(/^0x/i, '')
+      // Use first two visible chars if no separators
+      const parts = cleaned.split(/[^a-zA-Z0-9]+/).filter(Boolean)
+      if (parts.length === 0) return cleaned.slice(0, 2).toUpperCase()
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+      const first = (parts[0][0] ?? '').toUpperCase()
+      const last = (parts[parts.length - 1][0] ?? '').toUpperCase()
+      return `${first}${last}`
+    } catch {
+      return String(addr).slice(0, 2).toUpperCase()
+    }
+  }
+
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-      <div className="p-4">
-        <div>
-          <h3 className="text-base font-semibold">Your Entry Status</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            {userHBAR > 0
-              ? `You have ${userHBAR.toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR entered (${chancePercent.toLocaleString(undefined, { maximumFractionDigits: 0 })}% chance to win)`
-              : 'You have not entered yet.'}
-          </p>
-        </div>
+    <div className="rounded-lg border bg-card text-card-foreground shadow-sm h-full">
+      <div className="p-3 space-y-3 h-full flex flex-col min-h-0">
+        {/* Live Activity Feed */}
+        <div className="section-accent live-section flex-1 flex flex-col min-h-0">
+          <div className="flex h-full flex-col min-h-0">
+            <h4 className="text-sm font-semibold section-heading">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="opacity-90">
+                <path d="M3 12h3l3-9 4 18 3-12 4 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Live Activity Feed
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1">Recent activity</p>
 
-        <div className="mt-4">
-          <h4 className="text-sm font-semibold">Live Activity Feed</h4>
-          <p className="text-xs text-muted-foreground mt-1">Recent entries</p>
-
-          <div className="mt-2 overflow-y-auto max-h-48">
-            {recentEntered.length === 0 ? (
-              <div className="text-sm text-muted-foreground p-2">No recent entries.</div>
-            ) : (
-              <ul className="space-y-2">
-                {recentEntered.map((ev, i) => {
-                  const participant = ev.participant ?? ev.winner ?? 'Unknown'
-                  const ts = ev.timestamp
-                    ? new Date(Number(ev.timestamp))
-                    : ev.blockNumber
-                    ? new Date(Number(ev.blockNumber))
-                    : undefined
-                  return (
-                    <li
-                      key={`${ev.txHash ?? i}-${ev.logIndex ?? 0}`}
-                      className="flex items-center justify-between gap-4 rounded-md p-2 hover:bg-muted/10"
-                    >
-                      <div>
-                        <div className="text-sm">
-                          <span className="font-medium">Player {formatShort(String(participant))}</span> entered {formatAmount(ev.amount)}
+            <div className="feed-list flex flex-col flex-1 min-h-0">
+              {recentActivity.length === 0 ? (
+                <div className="text-sm text-muted-foreground p-2">No recent activity.</div>
+              ) : (
+                <ul className="flex flex-col-reverse gap-2">
+                  {recentActivity.map((ev, i) => {
+                    const participant = ev.participant ?? ev.winner ?? 'Unknown'
+                    const ts = ev.timestamp
+                      ? new Date(Number(ev.timestamp))
+                      : ev.blockNumber
+                      ? new Date(Number(ev.blockNumber))
+                      : undefined
+                    const initials = getInitials(String(participant))
+                    const isWinner = ev.type === 'WinnerPicked'
+                    const amountLabel = isWinner ? formatAmount(ev.prize ?? ev.amount) : formatAmount(ev.amount)
+                    return (
+                      <li
+                        key={`${ev.txHash ?? i}-${ev.logIndex ?? 0}`}
+                        className={`feed-item ${i === 0 ? 'new' : ''}`}
+                      >
+                        <div className="avatar small" aria-hidden>
+                          {initials}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1">{ts ? ts.toLocaleString() : '—'}</div>
-                      </div>
-                      <div className="text-xs text-muted-foreground" />
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+                        <div className="flex-1">
+                          <div className="feed-bubble text-sm">
+                            <span className="font-medium">{isWinner ? 'Winner' : 'Player'} {formatShort(String(participant))}</span>
+                            {' '}{isWinner ? 'won' : 'entered'} {amountLabel}
+                          </div>
+                          <div className="feed-ts text-xs">{ts ? ts.toLocaleString() : '—'}</div>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="mt-4">
-          <h4 className="text-sm font-semibold">Recent Winners</h4>
-          <div className="mt-2">
-            <WinnerCard limit={3} />
-          </div>
-        </div>
       </div>
     </div>
   )

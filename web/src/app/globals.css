@@ -115,27 +115,30 @@
 :root {
   --frame-radius: calc(var(--radius) + 6px);
   --frame-padding: 1rem;
-  --frame-bg: rgba(255,255,255,0.02);
-  --frame-border: rgba(15,23,42,0.06);
-  --frame-shadow: 0 8px 30px rgba(2,6,23,0.06);
+  /* Light-mode glass panel: semi-translucent with stronger presence */
+  --frame-bg: rgba(255, 255, 255, 0.7);
+  --frame-border: rgba(15, 23, 42, 0.06);
+  --frame-shadow: 0 8px 30px rgba(2, 6, 23, 0.06);
 }
 
 .dark {
-  --frame-bg: rgba(255,255,255,0.03);
-  --frame-border: rgba(255,255,255,0.04);
-  --frame-shadow: 0 10px 32px rgba(2,6,23,0.22);
+  /* Dark-mode: reduced transparency and darker tint to maintain contrast */
+  --frame-bg: rgba(17, 24, 39, 0.6);
+  --frame-border: rgba(255, 255, 255, 0.04);
+  --frame-shadow: 0 10px 32px rgba(2, 6, 23, 0.22);
 }
 
 /* Frame container — lightweight, motion-safe, matches existing tokens */
 .app-frame {
   border-radius: var(--frame-radius);
-  background-color: var(--frame-bg);
+  background: var(--frame-bg);
   border: 1px solid var(--frame-border);
   box-shadow: var(--frame-shadow);
   padding: var(--frame-padding);
   transition: box-shadow 200ms ease, background-color 180ms ease, transform 120ms ease;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  background-clip: padding-box;
 }
 
 /* Slightly tighter on mobile */
@@ -159,6 +162,23 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* subtle page gradient for light mode + very subtle dot-grid overlay (data-URL SVG) */
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Ccircle cx='1' cy='1' r='0.6' fill='rgba(15,23,42,0.04)'/%3E%3C/svg%3E"),
+      linear-gradient(135deg, #f8faf8 0%, #f4f6f4 100%);
+    background-repeat: repeat, no-repeat;
+    background-attachment: fixed, fixed;
+    background-size: auto, cover;
+  }
+  /* Dark-mode fallback: reduced-transparency dark gradient with lighter dot-grid */
+  .dark body {
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Ccircle cx='1' cy='1' r='0.6' fill='rgba(255,255,255,0.03)'/%3E%3C/svg%3E"),
+      linear-gradient(135deg, rgba(10,14,20,0.7) 0%, rgba(15,20,28,0.7) 100%);
+    background-color: var(--background);
+    background-repeat: repeat, no-repeat;
+    background-attachment: fixed, fixed;
+    background-size: auto, cover;
   }
 }
 

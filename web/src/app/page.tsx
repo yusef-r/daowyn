@@ -3,6 +3,7 @@ import { useAccount } from "wagmi";
 import StatusCard from "@/components/StatusCard";
 import LivePanel from "@/components/LivePanel";
 import EnterCard from "@/components/EnterCard";
+import WalletStatsCard from "@/components/WalletStatsCard";
 import AdminCard from "@/components/AdminCard";
 
 export default function Home() {
@@ -26,8 +27,7 @@ export default function Home() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <EnterCard />
-        {/* Blank placeholder panel for future implementation */}
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm" />
+        <WalletStatsCard />
       </div>
 
       {/* Admin moved to its own full-width row (double-wide on md+) */}

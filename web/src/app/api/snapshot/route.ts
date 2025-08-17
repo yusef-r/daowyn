@@ -266,7 +266,7 @@ async function build(headers: Headers): Promise<BuildResult> {
     const pTarget = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'POOL_TARGET' });
     const pDebug = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'debugUnits' });
     const pParticipants = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'getParticipants' });
-    const pRound = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'roundId' });
+    const pRound = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'currentRound' });
     const pBlock = rpcClient.getBlockNumber();
 
     const settled = await Promise.allSettled([

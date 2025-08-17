@@ -45,7 +45,7 @@ async function tryTriggerDraw(expectedRoundId: number) {
   try {
     const a = LOTTERY_ADDRESS as `0x${string}`;
     const pStage = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'stage' });
-    const pRound = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'roundId' });
+    const pRound = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'currentRound' });
     const pReady = rpcClient.readContract({ address: a, abi: LOTTERY_ABI, functionName: 'isReadyForDraw' });
 
     const [stageRaw, roundRaw, isReady] = await Promise.all([pStage, pRound, pReady]);

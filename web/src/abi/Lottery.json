@@ -19,6 +19,12 @@
           "internalType": "uint256",
           "name": "amountEntered",
           "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "roundId",
+          "type": "uint256"
         }
       ],
       "name": "EnteredPool",
@@ -118,6 +124,19 @@
       "inputs": [
         {
           "indexed": true,
+          "internalType": "uint256",
+          "name": "roundId",
+          "type": "uint256"
+        }
+      ],
+      "name": "RoundStarted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
           "internalType": "address",
           "name": "winner",
           "type": "address"
@@ -126,6 +145,12 @@
           "indexed": false,
           "internalType": "uint256",
           "name": "amountWon",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "roundId",
           "type": "uint256"
         }
       ],
@@ -165,6 +190,19 @@
     {
       "inputs": [],
       "name": "POOL_TARGET",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "currentRound",
       "outputs": [
         {
           "internalType": "uint256",
@@ -334,19 +372,6 @@
     {
       "inputs": [],
       "name": "pendingRefundsTotal",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "roundId",
       "outputs": [
         {
           "internalType": "uint256",

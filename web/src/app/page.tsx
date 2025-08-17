@@ -1,7 +1,7 @@
 "use client";
 import { useAccount } from "wagmi";
 import StatusCard from "@/components/StatusCard";
-import WinnerCard from "@/components/WinnerCard";
+import LivePanel from "@/components/LivePanel";
 import EnterCard from "@/components/EnterCard";
 import AdminCard from "@/components/AdminCard";
 
@@ -21,12 +21,20 @@ export default function Home() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <StatusCard />
-        <WinnerCard />
+        <LivePanel />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <EnterCard />
-        <AdminCard />
+        {/* Blank placeholder panel for future implementation */}
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm" />
+      </div>
+
+      {/* Admin moved to its own full-width row (double-wide on md+) */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <AdminCard />
+        </div>
       </div>
     </main>
   );

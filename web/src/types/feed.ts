@@ -20,6 +20,9 @@ export interface FeedEntry {
   amount?: bigint | number
   prize?: bigint | number
 
+  // canonical round identifier
+  roundId?: number
+
   // flexible maps for actors/amounts if needed
   actors?: Record<string, string>
   amounts?: Record<string, bigint | number>

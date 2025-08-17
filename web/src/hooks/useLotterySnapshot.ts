@@ -8,7 +8,6 @@ if (process.env.NODE_ENV !== 'production') {
     const prev = { participantCount: 5, isDrawing: true, anyArr: [1], anyBig: 7n };
     const curZero = { participantCount: 0 };
     // 0 overwrites
-    // eslint-disable-next-line no-console
     console.assert((curZero.participantCount ?? prev.participantCount) === 0, '[assert] 0 should overwrite lastGood');
     const curFalse = { isDrawing: false };
     console.assert((curFalse.isDrawing ?? prev.isDrawing) === false, '[assert] false should overwrite lastGood');

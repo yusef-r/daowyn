@@ -7,7 +7,9 @@
  */
 
 import type { FeedEntry } from '@/types/feed'
-import { LOTTERY_ADDRESS } from '@/lib/contracts/lottery'
+import { LOTTERY_ADDRESS, LOTTERY_ABI } from '@/lib/contracts/lottery'
+import { decodeEventLog } from 'viem'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // Mirror Node base URL should be provided in env
 // Mirror base + helpers
@@ -122,6 +124,126 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
     const log_index = raw.log_index
     const block_number = raw.block_number
     const consensus_timestamp = raw.consensus_timestamp
+
+    // Log raw Mirror response so we can distinguish "no logs" vs "logs but mapping returned null"
+    try {
+      // lightweight debug; avoid throwing if stringify fails
+      console.debug('[mirror] raw log:', raw)
+    } catch {}
+
+    const topics = (raw.topics as string[] | undefined) ?? (raw.topic0 ? [String(raw.topic0)] : [])
+
+    // Try ABI-based decoding first (returns on successful decode & mapping)
+    try {
+      // Pre-compute normalized tx/block/ts/index so ABI decoding branch can return stable keys
+      const txRawForAbi = transaction_hash ?? transaction_id
+      const txHashForAbi = normalizeTxHash(txRawForAbi)
+      const blockNumForAbi = block_number !== undefined ? Number(String(block_number)) : undefined
+      const tsForAbi = consensus_timestamp ? consensusTsToMs(consensus_timestamp) : undefined
+      const idxForAbi =
+        typeof log_index === 'number'
+          ? log_index
+          : typeof log_index === 'string'
+          ? Number(log_index)
+          : undefined
+
+      for (const abiEntry of (LOTTERY_ABI as any[])) {
+        if (!abiEntry || abiEntry.type !== 'event') continue
+        try {
+          const decoded = decodeEventLog({
+            abi: [abiEntry],
+            data: (data ?? '0x') as any,
+            topics: (topics ?? []) as any
+          }) as any
+          const name = abiEntry.name
+          const args = decoded?.args ?? decoded ?? {}
+
+          const tryAddress = (v: unknown, topicIdx?: number) => {
+            if (typeof v === 'string' && looksLikeHexAddress(v)) return v as `0x${string}`
+            if (topicIdx !== undefined && topics?.[topicIdx]) {
+              const fromTopic = normalizeAddressFromTopic(topics[topicIdx])
+              if (fromTopic) return fromTopic
+            }
+            return undefined
+          }
+
+          if (name === 'EnteredPool') {
+            const participantCandidate = args.player ?? args.participant
+            const participant = tryAddress(participantCandidate, 1)
+            let amount = BigInt(0)
+            try {
+              if (args.amountEntered !== undefined) amount = BigInt(String(args.amountEntered))
+              else if (args.amount !== undefined) amount = BigInt(String(args.amount))
+            } catch {}
+            if (!participant) continue
+
+            const entry: FeedEntry = {
+              type: 'EnteredPool',
+              txHash: typeof txHashForAbi === 'string' && looksLikeHexTx(txHashForAbi) ? (txHashForAbi as `0x${string}`) : undefined,
+              logIndex: idxForAbi,
+              blockNumber: blockNumForAbi,
+              timestamp: tsForAbi,
+              participant,
+              amount
+            }
+            try { console.debug('[mirror] mapped entry (abi decode)', { name, entry }) } catch {}
+            return entry
+          }
+
+          if (name === 'OverageRefunded') {
+            const participantCandidate = args.player ?? args.participant
+            const participant = tryAddress(participantCandidate, 1)
+            let amount = BigInt(0)
+            try {
+              if (args.amountRefunded !== undefined) amount = BigInt(String(args.amountRefunded))
+              else if (args.change !== undefined) amount = BigInt(String(args.change))
+              else if (args.amount !== undefined) amount = BigInt(String(args.amount))
+            } catch {}
+            if (!participant) continue
+
+            const entry: FeedEntry = {
+              type: 'OverageRefunded',
+              txHash: typeof txHashForAbi === 'string' && looksLikeHexTx(txHashForAbi) ? (txHashForAbi as `0x${string}`) : undefined,
+              logIndex: idxForAbi,
+              blockNumber: blockNumForAbi,
+              timestamp: tsForAbi,
+              participant,
+              amount
+            }
+            try { console.debug('[mirror] mapped entry (abi decode)', { name, entry }) } catch {}
+            return entry
+          }
+
+          if (name === 'WinnerPicked') {
+            const winnerCandidate = args.winner
+            const winner = tryAddress(winnerCandidate, 1)
+            let prize = BigInt(0)
+            try {
+              if (args.amountWon !== undefined) prize = BigInt(String(args.amountWon))
+              else if (args.amount !== undefined) prize = BigInt(String(args.amount))
+              else if (args.prize !== undefined) prize = BigInt(String(args.prize))
+            } catch {}
+            if (!winner) continue
+
+            const entry: FeedEntry = {
+              type: 'WinnerPicked',
+              txHash: typeof txHashForAbi === 'string' && looksLikeHexTx(txHashForAbi) ? (txHashForAbi as `0x${string}`) : undefined,
+              logIndex: idxForAbi,
+              blockNumber: blockNumForAbi,
+              timestamp: tsForAbi,
+              winner,
+              prize
+            }
+            try { console.debug('[mirror] mapped entry (abi decode)', { name, entry }) } catch {}
+            return entry
+          }
+        } catch {
+          // decoding failed for this ABI entry — try next
+        }
+      }
+    } catch {
+      // ignore ABI decode failures; fall back to previous heuristics below
+    }
 
     const sig = String(topic0).toLowerCase()
 

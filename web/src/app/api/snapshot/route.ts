@@ -183,7 +183,7 @@ function contractsBatch(address: `0x${string}`) {
     { address: a, abi: LOTTERY_ABI, functionName: 'POOL_TARGET' },
     { address: a, abi: LOTTERY_ABI, functionName: 'debugUnits' },
     { address: a, abi: LOTTERY_ABI, functionName: 'getParticipants' },
-    { address: a, abi: LOTTERY_ABI, functionName: 'roundId' },
+    { address: a, abi: LOTTERY_ABI, functionName: 'currentRound' },
   ] as const;
 }
 

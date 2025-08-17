@@ -35,8 +35,8 @@ contract Lottery {
     // Minimal state machine for pool lifecycle.
     enum Stage { Filling, Ready, Drawing }
     Stage public stage;
-    uint256 public roundId;
- 
+    uint256 public currentRound;
+  
     // Simple mutex for nonReentrant on enter()
     bool private locked;
     modifier nonReentrant() {
@@ -45,7 +45,7 @@ contract Lottery {
         _;
         locked = false;
     }
- 
+  
     // Manually track the participant count for efficient off-chain queries.
     uint256 public participantCount;
 
@@ -62,14 +62,15 @@ contract Lottery {
         uint256 net = bal > pendingRefundsTotal ? (bal - pendingRefundsTotal) : 0;
         return net;
     }
- 
+  
     // --- EVENTS ---
     
-    event EnteredPool(address indexed player, uint256 amountEntered);
-    event WinnerPicked(address indexed winner, uint256 amountWon);
+    event EnteredPool(address indexed player, uint256 amountEntered, uint256 indexed roundId);
+    event WinnerPicked(address indexed winner, uint256 amountWon, uint256 indexed roundId);
     event OverageRefunded(address indexed player, uint256 amountRefunded);
     event PoolFilled(uint256 roundId, uint256 total);
     event RoundReset(uint256 roundId);
+    event RoundStarted(uint256 indexed roundId);
     event RefundCredited(address indexed user, uint256 amount);
     event RefundFlushed(address indexed user, uint256 amount);
 
@@ -79,7 +80,7 @@ contract Lottery {
         owner = payable(msg.sender);
         // initialize state machine and round counter
         stage = Stage.Filling;
-        roundId = 1;
+        currentRound = 1;
     }
 
     // --- FUNCTIONS ---
@@ -113,13 +114,13 @@ contract Lottery {
         if (take > 0) {
             participants.push(payable(msg.sender));
             participantCount++;
-            emit EnteredPool(msg.sender, take);
+            emit EnteredPool(msg.sender, take, currentRound);
         }
  
         // If this entry completed the pool, mark Ready and emit PoolFilled (tinybars)
         if (preNetTiny + take >= POOL_TARGET) {
             stage = Stage.Ready;
-            emit PoolFilled(roundId, preNetTiny + take);
+            emit PoolFilled(currentRound, preNetTiny + take);
         }
  
         // Interactions: hybrid refund model (push-or-credit) + auto-flush
@@ -160,7 +161,7 @@ contract Lottery {
         if (stage == Stage.Filling && netAfterTiny >= POOL_TARGET) {
             stage = Stage.Ready;
             // Emit tinybars total
-            emit PoolFilled(roundId, netAfterTiny);
+            emit PoolFilled(currentRound, netAfterTiny);
         }
     }
 
@@ -174,7 +175,7 @@ contract Lottery {
             if (netTiny >= POOL_TARGET) {
                 stage = Stage.Ready;
                 // Emit tinybars total
-                emit PoolFilled(roundId, netTiny);
+                emit PoolFilled(currentRound, netTiny);
             }
         }
     }
@@ -230,7 +231,7 @@ contract Lottery {
             require(successPrize, "HBET: Failed to send prize to winner.");
         }
          
-        emit WinnerPicked(winner, prizeAmountTiny);
+        emit WinnerPicked(winner, prizeAmountTiny, currentRound);
     }
     
     /**
@@ -245,10 +246,12 @@ contract Lottery {
         isDrawing = false;
         stage = Stage.Filling;
 
-        // Notify off-chain listeners that the round has been reset (before bumping to the next roundId).
-        emit RoundReset(roundId);
+        // Notify off-chain listeners that the round has been reset (before bumping to the next round).
+        emit RoundReset(currentRound);
 
-        roundId++;
+        // Advance to the next canonical round and notify listeners.
+        currentRound++;
+        emit RoundStarted(currentRound);
     }
 
     // Accept plain HBAR transfers and route to enter()
@@ -265,24 +268,24 @@ contract Lottery {
      * - targetTiny: target (tinybars, 8 decimals)
      * - ready: readiness (tinybars comparison)
      */
-   function debugUnits()
-       public
-       view
-       returns (
-           uint256 balanceTiny,
-           uint256 pendingTiny,
-           uint256 netTiny,
-           uint256 targetTiny,
-           bool ready
-       )
-   {
-       balanceTiny = address(this).balance;
-       pendingTiny = pendingRefundsTotal;
-       netTiny = _netBalance();
-       targetTiny = POOL_TARGET;
-       ready = netTiny >= targetTiny;
-   }
-     
+    function debugUnits()
+        public
+        view
+        returns (
+            uint256 balanceTiny,
+            uint256 pendingTiny,
+            uint256 netTiny,
+            uint256 targetTiny,
+            bool ready
+        )
+    {
+        balanceTiny = address(this).balance;
+        pendingTiny = pendingRefundsTotal;
+        netTiny = _netBalance();
+        targetTiny = POOL_TARGET;
+        ready = netTiny >= targetTiny;
+    }
+      
     function isReadyForDraw() public view returns (bool) {
         return _netBalance() >= POOL_TARGET;
     }

@@ -38,7 +38,6 @@ export function LotteryDataProvider({ children }: { children: React.ReactNode })
     if (typeof r === 'number' && typeof prevRoundRef.current === 'number' && r !== prevRoundRef.current) {
       setOverlay(null);
       if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
         console.log('[lottery.round] roundId change detected; clearing optimistic overlay', { prev: prevRoundRef.current, next: r });
       }
     }

@@ -47,7 +47,8 @@ export function useLotteryEvents() {
             logIndex: safeNumber(logIndexRaw),
             blockNumber: safeNumber(blockNumberRaw),
             participant: args.player,
-            amount: args.amountEntered
+            amount: args.amountEntered,
+            roundId: safeNumber(args.roundId)
           }
         })
         push(mapped)
@@ -111,7 +112,8 @@ export function useLotteryEvents() {
             logIndex: safeNumber(logIndexRaw),
             blockNumber: safeNumber(blockNumberRaw),
             winner: args.winner,
-            prize: args.amountWon
+            prize: args.amountWon,
+            roundId: safeNumber(args.roundId)
           }
         })
         push(mapped)

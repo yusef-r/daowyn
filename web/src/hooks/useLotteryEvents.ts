@@ -97,6 +97,8 @@ export function useLotteryEvents() {
       abi: LOTTERY_ABI,
       eventName: 'WinnerPicked',
       onLogs: (logs) => {
+        // Debug: inspect raw logs received from the provider
+        try { console.debug('[useLotteryEvents] raw WinnerPicked logs:', logs) } catch {}
         const mapped: FeedEntry[] = logs.map((l) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const args = (l as any)?.args ?? {}
@@ -116,6 +118,8 @@ export function useLotteryEvents() {
             roundId: safeNumber(args.roundId)
           }
         })
+        // Debug: inspect mapped entries produced by the watcher
+        try { console.debug('[useLotteryEvents] mapped WinnerPicked entries:', mapped) } catch {}
         push(mapped)
       },
       onError: (error) => {

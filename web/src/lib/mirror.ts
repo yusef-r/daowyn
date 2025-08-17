@@ -117,6 +117,8 @@ export function safeNumber(value?: number | bigint | string | null): number | un
 // Map Mirror Node log object to a normalized feed entry compatible with useLotteryEvents.LotteryEvent
 export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
   try {
+    // Debug: surface raw mirror log for diagnosing mapping issues (keep shallow to avoid circular)
+    try { console.debug('[mirror] mapMirrorLogToEntry raw log sample', raw) } catch {}
     const topic0 = (raw.topic0 as string | undefined) ?? raw.topics?.[0] ?? ''
     const data = raw.data as string | undefined
     const transaction_hash = raw.transaction_hash as string | undefined
@@ -184,8 +186,12 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
               blockNumber: blockNumForAbi,
               timestamp: tsForAbi,
               participant,
-              amount
+              amount,
+              roundId: safeNumber(args.roundId)
             }
+            // Ensure a stable transaction identifier for Hedera tx ids (mirror may return non-hex ids)
+            ;(entry as any).transaction_id =
+              typeof txHashForAbi === 'string' && !looksLikeHexTx(txHashForAbi) ? txHashForAbi : transaction_id ?? undefined
             try { console.debug('[mirror] mapped entry (abi decode)', { name, entry }) } catch {}
             return entry
           }
@@ -232,8 +238,12 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
               blockNumber: blockNumForAbi,
               timestamp: tsForAbi,
               winner,
-              prize
+              prize,
+              roundId: safeNumber(args.roundId)
             }
+            // Ensure a stable transaction identifier for Hedera tx ids (mirror may return non-hex ids)
+            ;(entry as any).transaction_id =
+              typeof txHashForAbi === 'string' && !looksLikeHexTx(txHashForAbi) ? txHashForAbi : transaction_id ?? undefined
             try { console.debug('[mirror] mapped entry (abi decode)', { name, entry }) } catch {}
             return entry
           }
@@ -246,7 +256,9 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
     }
 
     const sig = String(topic0).toLowerCase()
-
+    // Debug: signature/topic inspection to see why ABI decode may have failed
+    try { console.debug('[mirror] topic0 signature', { topic0, sig, args: raw.args }) } catch {}
+    
     const txRaw = transaction_hash ?? transaction_id
     const txHash = normalizeTxHash(txRaw)
     const blockNum = block_number !== undefined ? Number(String(block_number)) : undefined
@@ -263,15 +275,19 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
         else if (raw.args?.amount) amount = BigInt(String(raw.args.amount))
       } catch {}
       if (!participant) return null
-      return {
+      const entry: FeedEntry = {
         type: 'EnteredPool',
         txHash: typeof txHash === 'string' && looksLikeHexTx(txHash) ? (txHash as `0x${string}`) : undefined,
         logIndex: idx,
         blockNumber: blockNum,
         timestamp: ts,
         participant,
-        amount
+        amount,
+        roundId: safeNumber(raw.args?.roundId as any)
       }
+      ;(entry as any).transaction_id =
+        typeof txHash === 'string' && !looksLikeHexTx(txHash) ? txHash : transaction_id ?? undefined
+      return entry
     }
 
     // OverageRefunded
@@ -305,15 +321,19 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
         else if (raw.args?.prize) prize = BigInt(String(raw.args.prize))
       } catch {}
       if (!winner) return null
-      return {
+      const entry: FeedEntry = {
         type: 'WinnerPicked',
         txHash: typeof txHash === 'string' && looksLikeHexTx(txHash) ? (txHash as `0x${string}`) : undefined,
         logIndex: idx,
         blockNumber: blockNum,
         timestamp: ts,
         winner,
-        prize
+        prize,
+        roundId: safeNumber(raw.args?.roundId as any)
       }
+      ;(entry as any).transaction_id =
+        typeof txHash === 'string' && !looksLikeHexTx(txHash) ? txHash : transaction_id ?? undefined
+      return entry
     }
 
     return null

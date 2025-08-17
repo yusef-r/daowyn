@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi'
 import { formatUnits } from 'viem'
 import { useEvents } from '@/app/providers/events'
 import type { FeedEntry } from '@/types/feed'
+import { Wallet, Trophy, TrendingUp } from 'lucide-react'
 
 export default function WalletStatsCard() {
   const { address } = useAccount()
@@ -39,8 +40,12 @@ export default function WalletStatsCard() {
   const poolsEntered = useMemo(() => {
     const s = new Set<string>()
     for (const e of userEntered) {
+      const txKey =
+        e.txHash ??
+        (e as unknown as { transaction_id?: string }).transaction_id ??
+        `${e.blockNumber ?? ''}-${e.logIndex ?? ''}-${e.timestamp ?? ''}`
       if (typeof e.roundId === 'number') s.add(String(e.roundId))
-      else s.add(`${e.txHash ?? e.logIndex ?? Math.random()}`)
+      else s.add(txKey)
     }
     return s.size
   }, [userEntered])
@@ -49,6 +54,47 @@ export default function WalletStatsCard() {
     () => events.filter((e) => e.type === 'WinnerPicked' && e.winner && String(e.winner).toLowerCase() === userAddr).length,
     [events, userAddr]
   )
+
+  // Lightweight debug to inspect WinnerPicked events and their roundId/prize shapes
+  try {
+    const winnerEvents = (events?.filter((ev) => ev.type === 'WinnerPicked') ?? []) as unknown[]
+    const winnerEventsSample = winnerEvents.slice(0, 5).map((ev) => {
+      const asRec = ev as { prize?: bigint | number; amount?: bigint | number; winner?: string; roundId?: number }
+      const asWinner = ev as { winner?: string }
+      return {
+        winner: asWinner.winner,
+        prize: asRec.prize ?? asRec.amount,
+        roundId: asRec.roundId,
+        roundIdType: typeof asRec.roundId
+      }
+    })
+    // Summary (existing)
+    console.debug('WalletStats debug', {
+      winnerEventsTotal: winnerEvents.length,
+      winnerEventsSample
+    })
+
+    // Full sample for deeper inspection (print first 10 full event objects)
+    try {
+      // Avoid potential circular structure issues by attempting shallow stringification,
+      // but also log the raw objects as a fallback when stringify fails.
+      const sample = winnerEvents.slice(0, 10)
+      try {
+        console.debug('WalletStats debug - winnerEventsSampleFull (stringified):', JSON.stringify(sample, (_k, v) => {
+          // Convert BigInt to string for safe stringify
+          if (typeof v === 'bigint') return v.toString()
+          return v
+        }, 2))
+      } catch {
+        console.debug('WalletStats debug - winnerEventsSampleFull (raw):', sample)
+      }
+    } catch {}
+  } catch {}
+
+  const winRatePercent = useMemo(() => {
+    if (poolsEntered === 0) return 0
+    return Math.round((wins / poolsEntered) * 100)
+  }, [wins, poolsEntered])
 
   const totalWinnings = useMemo(() => {
     return events.reduce((s, e) => {
@@ -65,26 +111,60 @@ export default function WalletStatsCard() {
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
       <div className="p-4">
         <h3 className="text-base font-semibold">Wallet Stats</h3>
-        <div className="mt-3 space-y-3">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Total contributed</span>
-            <span className="font-medium">
-              {totalContributed > 0 ? `${totalContributed.toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR` : '—'}
-            </span>
+
+        <div className="mt-3">
+          {/* WINS - primary metric */}
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-muted-foreground opacity-70" />
+              <span className="text-sm text-muted-foreground">Wins</span>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium text-foreground">{wins} Wins</div>
+            </div>
           </div>
 
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Win record</span>
-            <span className="font-medium">
-              {`${poolsEntered} | Wins: ${wins}`}
-            </span>
+          <div className="border-t border-muted-foreground/20 my-3" />
+
+          {/* Win Rate */}
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-muted-foreground opacity-70" />
+              <span className="text-sm text-muted-foreground">Win Rate</span>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium text-foreground">{winRatePercent}%</div>
+            </div>
           </div>
 
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Total earnings</span>
-            <span className="font-medium">
-              {totalWinnings > 0 ? `${totalWinnings.toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR` : '—'}
-            </span>
+          <div className="border-t border-muted-foreground/20 my-3" />
+
+          {/* Invested */}
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-muted-foreground opacity-70" />
+              <span className="text-sm text-muted-foreground">Invested</span>
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-medium text-foreground">
+                {totalContributed > 0
+                  ? `${totalContributed.toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR`
+                  : '—'}
+              </span>
+            </div>
+          </div>
+
+          <div className="border-t border-muted-foreground/20 my-3" />
+
+          {/* Total Entries */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-muted-foreground opacity-70" />
+              <span className="text-sm text-muted-foreground">Total Entries</span>
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-medium text-foreground">{poolsEntered} Entries</span>
+            </div>
           </div>
         </div>
       </div>

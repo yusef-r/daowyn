@@ -67,7 +67,17 @@ export default function LivePanel() {
         .map((e) => e.name ?? '') as string[])
     : []
   try {
-    // Keep logs lightweight and defensive (optional chaining where useful).
+    // Compute lightweight summary metrics to help root-cause event filtering issues.
+    const uniqueEventNames = Array.from(new Set((events ?? []).map((e) => e.type ?? '')))
+    const blockNumbers = (events ?? [])
+      .map((e) => (typeof e.blockNumber === 'number' ? e.blockNumber : undefined))
+      .filter((n): n is number => typeof n === 'number')
+    const firstBlockSeen = blockNumbers.length > 0 ? Math.min(...blockNumbers) : undefined
+    const lastBlockSeen = blockNumbers.length > 0 ? Math.max(...blockNumbers) : undefined
+    // estimate a sensible startBlock suggestion (used by EventsProvider as lastSeen - 2)
+    const estimatedChosenStartBlock = lastBlockSeen !== undefined ? Math.max(0, lastBlockSeen - 2) : undefined
+    const currentRoundIdForDebug = typeof roundId === 'number' ? roundId : undefined
+
     console.debug('LivePanel debug', {
       eventsLength: events?.length,
       currentRoundEventsLength: currentRoundEvents?.length,
@@ -76,7 +86,13 @@ export default function LivePanel() {
       userAddr,
       userHBAR,
       lotteryAddress: LOTTERY_ADDRESS,
-      abiEventNames
+      abiEventNames,
+      uniqueEventNames,
+      firstBlockSeen,
+      lastBlockSeen,
+      estimatedChosenStartBlock,
+      currentRoundId: currentRoundIdForDebug,
+      eventsRoundTypes: events?.slice(0, 20).map((ev) => ({ roundId: ev.roundId, type: ev.type, blockNumber: ev.blockNumber, logIndex: ev.logIndex }))
     })
   } catch (err) {
     // swallow any debug logging errors in production render paths
@@ -165,9 +181,13 @@ export default function LivePanel() {
                     const initials = getInitials(String(participant))
                     const isWinner = ev.type === 'WinnerPicked'
                     const amountLabel = isWinner ? formatAmount(ev.prize ?? ev.amount) : formatAmount(ev.amount)
+                    const keyStr =
+                      ev.txHash ??
+                      (ev as unknown as { transaction_id?: string }).transaction_id ??
+                      `${ev.blockNumber ?? ''}-${ev.logIndex ?? 0}-${ev.timestamp ?? i}`
                     return (
                       <li
-                        key={`${ev.txHash ?? i}-${ev.logIndex ?? 0}`}
+                        key={keyStr}
                         className={`feed-item ${i === 0 ? 'new' : ''}`}
                       >
                         <div className="avatar small" aria-hidden>

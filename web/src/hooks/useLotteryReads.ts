@@ -43,6 +43,7 @@ type UseLotteryReadsResult = {
   stage?: 'Filling' | 'Ready' | 'Drawing';
   stageIndex?: number;             // optional debug
   roundId?: number;                // round identity boundary
+  currentRound?: number;           // alias for snapshot currentRound (same value as roundId)
   willTriggerAt?: number;
   isFilling: boolean;
   isReadyStage: boolean;

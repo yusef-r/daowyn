@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import type { FeedEntry } from '@/types/feed'
 import { fetchHistoryEntries } from '@/lib/mirror'
+import { useLotteryEvents } from '@/hooks/useLotteryEvents'
 
 type EventsContextValue = {
   events: FeedEntry[]
@@ -78,6 +79,8 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         setMerged([])
         // entries may not be typed as FeedEntry yet from mirror; we cast here safely
         mergeAndSet(entries as unknown as FeedEntry[])
+        // Debug: surface a short sample of fetched history entries for diagnostics
+        try { console.debug('[events provider] fetched history entries sample', (entries ?? []).slice(0, 10)) } catch {}
       } catch (err) {
         setDegraded(true)
       } finally {
@@ -101,6 +104,8 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
           const { entries, degraded: wasDegraded } = await fetchHistoryEntries({ startBlock, limit: 200 })
           setDegraded(wasDegraded)
           mergeAndSet(entries as unknown as FeedEntry[])
+          // Debug: sample of polled entries
+          try { console.debug('[events provider] polled history entries sample', (entries ?? []).slice(0, 10)) } catch {}
         } catch {
           setDegraded(true)
         } finally {
@@ -120,12 +125,24 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
       const { entries, degraded: wasDegraded } = await fetchHistoryEntries({ startBlock, limit: 500 })
       setDegraded(wasDegraded)
       mergeAndSet(entries as unknown as FeedEntry[])
+      // Debug: sample of refetched entries for diagnostics
+      try { console.debug('[events provider] refetched history entries sample', (entries ?? []).slice(0, 10)) } catch {}
     } catch {
       setDegraded(true)
     } finally {
       isFetchingRef.current = false
     }
   }, [mergeAndSet])
+
+  // Merge live watcher events (client-side) so consumers see WinnerPicked and other live-only events.
+  // useLotteryEvents subscribes to contract events; merge its mapped FeedEntry[] into our canonical feed.
+  const { events: liveEvents } = useLotteryEvents()
+  useEffect(() => {
+    if (!Array.isArray(liveEvents) || liveEvents.length === 0) return
+    try { console.debug('[events provider] merging live events sample', (liveEvents ?? []).slice(0, 10)) } catch {}
+    // mergeAndSet will dedupe and prepend
+    mergeAndSet(liveEvents)
+  }, [liveEvents, mergeAndSet])
 
   const value = useMemo(
     () => ({

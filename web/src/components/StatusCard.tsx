@@ -187,7 +187,7 @@ export default function StatusCard() {
                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M6 20v-1a4 4 0 014-4h4a4 4 0 014 4v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Your Entry Status
+              Entry Status
             </h3>
             <p className="text-sm text-muted-foreground mt-1 lp-muted">
               {userHBAR > 0

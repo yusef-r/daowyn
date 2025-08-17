@@ -13,6 +13,15 @@ export default function LivePanel() {
   const { netHBAR, roundId } = useLotteryReads()
   const { events } = useEvents()
 
+  // FeedEntry.timestamp is normalized to milliseconds at mapping time.
+  // Treat it as a plain millisecond number here (no UI-side heuristics).
+  const comparableTs = (e?: FeedEntry): number => {
+    if (!e) return 0
+    const t = e.timestamp ?? 0
+    const n = typeof t === 'bigint' ? Number(t) : Number(t)
+    return Number.isFinite(n) ? n : 0
+  }
+
   // Prefer canonical roundId from snapshot when available.
   // If roundId is provided, only show events that explicitly match that canonical round.
   // Otherwise, fall back to the previous boundary heuristic.
@@ -109,8 +118,8 @@ export default function LivePanel() {
   const recentActivity = useMemo(() => {
     const combined = [...recentEntered, ...recentWinners]
     combined.sort((a, b) => {
-      const aTs = Number(a.timestamp ?? (typeof a.blockNumber === 'number' ? a.blockNumber : 0))
-      const bTs = Number(b.timestamp ?? (typeof b.blockNumber === 'number' ? b.blockNumber : 0))
+      const aTs = comparableTs(a)
+      const bTs = comparableTs(b)
       return bTs - aTs
     })
     return combined.slice(0, 5)
@@ -173,11 +182,13 @@ export default function LivePanel() {
                 <ul className="flex flex-col-reverse gap-2">
                   {recentActivity.map((ev, i) => {
                     const participant = ev.participant ?? ev.winner ?? 'Unknown'
-                    const ts = ev.timestamp
-                      ? new Date(Number(ev.timestamp))
-                      : ev.blockNumber
-                      ? new Date(Number(ev.blockNumber))
-                      : undefined
+                    const ts = (() => {
+                      const t = ev.timestamp
+                      if (t === undefined || t === null) return undefined
+                      const n = typeof t === 'bigint' ? Number(t) : Number(t)
+                      if (!Number.isFinite(n)) return undefined
+                      return new Date(n)
+                    })()
                     const initials = getInitials(String(participant))
                     const isWinner = ev.type === 'WinnerPicked'
                     const amountLabel = isWinner ? formatAmount(ev.prize ?? ev.amount) : formatAmount(ev.amount)

@@ -14,6 +14,23 @@ type EventsContextValue = {
 
 const EventsContext = createContext<EventsContextValue | undefined>(undefined)
 
+function amtToHBAR(a?: bigint | number) {
+  if (a === undefined || a === null) return 0
+  if (typeof a === 'bigint') {
+    try {
+      // bigint represents tinybars (8 decimals)
+      return Number(a) / 1e8
+    } catch {
+      return 0
+    }
+  }
+  if (typeof a === 'number') {
+    if (!Number.isFinite(a)) return 0
+    return a / 1e8
+  }
+  return 0
+}
+
 export function EventsProvider({ children }: { children: React.ReactNode }) {
 
   // Local merged state: history + live
@@ -28,7 +45,8 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     const tx = e.txHash ?? (e as unknown as { transaction_id?: string })?.transaction_id
     const idx = typeof e.logIndex === 'number' ? e.logIndex : 0
     if (tx) return `${String(tx)}:${String(idx)}`
-    const ts = e.timestamp ?? e.blockNumber ?? Date.now()
+    // Expect e.timestamp to be normalized to milliseconds at mapping time.
+    const ts = e.timestamp ?? Date.now()
     return `ts:${String(ts)}:${String(idx)}`
   }
 
@@ -36,7 +54,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   const mergeAndSet = useCallback((incoming: FeedEntry[]) => {
     const s = seenRef.current
     const accumulated: FeedEntry[] = []
-
+ 
     for (const e of incoming) {
       const k = keyFor(e)
       if (s.has(k)) continue
@@ -51,12 +69,35 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         lastSeenBlockRef.current = lastSeenBlockRef.current ? Math.max(lastSeenBlockRef.current, bn) : bn
       }
     }
-
+ 
+    // Persist newly-seen WinnerPicked prizes to localStorage per-winner (mimics persistence of Total Entries)
+    // Only process the newly accumulated items (seenRef prevented duplicates)
+    try {
+      for (const ev of accumulated) {
+        if (ev.type === 'WinnerPicked' && ev.winner) {
+          const winner = String(ev.winner).toLowerCase()
+          // prize may be bigint or number (tinybars)
+          const rawPrize = (ev.prize ?? ev.amount ?? 0) as bigint | number
+          const prizeHBAR = amtToHBAR(rawPrize)
+          if (!prizeHBAR || prizeHBAR === 0) continue
+          const key = `walletStats:totalWinnings:${winner}`
+          const prevRaw = localStorage.getItem(key)
+          const prev = prevRaw !== null && prevRaw !== '' ? Number(prevRaw) : 0
+          if (!Number.isFinite(prev)) continue
+          const next = prev + prizeHBAR
+          localStorage.setItem(key, String(next))
+        }
+      }
+    } catch {
+      // noop - localStorage may be unavailable in some environments
+    }
+ 
     setMerged(prev => {
       const combined = [...accumulated, ...prev]
       combined.sort((a, b) => {
-        const aTs = Number(a.timestamp ?? (typeof a.blockNumber === 'number' ? a.blockNumber : 0))
-        const bTs = Number(b.timestamp ?? (typeof b.blockNumber === 'number' ? b.blockNumber : 0))
+        // Use normalized timestamp (ms) only — mapping ensures timestamp is always present.
+        const aTs = Number(a.timestamp ?? 0)
+        const bTs = Number(b.timestamp ?? 0)
         return bTs - aTs
       })
       return combined

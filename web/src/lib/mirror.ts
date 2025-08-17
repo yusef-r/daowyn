@@ -62,6 +62,31 @@ function consensusTsToMs(ts: string): number {
   return s * 1000 + Math.floor(ns / 1_000_000)
 }
 
+export function normalizeToMs(v?: number | bigint | string | Date | null): number {
+  // Normalize a variety of timestamp inputs to milliseconds since epoch.
+  // Accepts number (seconds or ms), bigint, numeric string, "seconds.nanos" string,
+  // Date instance. If conversion fails or value is absent, return Date.now().
+  if (v === undefined || v === null) return Date.now()
+  if (typeof v === 'number') {
+    return v < 1e12 ? Math.floor(v * 1000) : Math.floor(v)
+  }
+  if (typeof v === 'bigint') {
+    const n = Number(v)
+    return n < 1e12 ? Math.floor(n * 1000) : Math.floor(n)
+  }
+  if (typeof v === 'string') {
+    // Mirror consensus timestamps are "seconds.nanos"
+    if (/^\d+\.\d+$/.test(v)) return consensusTsToMs(v)
+    const n = Number(v)
+    if (Number.isFinite(n)) return n < 1e12 ? Math.floor(n * 1000) : Math.floor(n)
+    const parsed = Date.parse(v)
+    if (!Number.isNaN(parsed)) return parsed
+    return Date.now()
+  }
+  if (v instanceof Date) return v.getTime()
+  return Date.now()
+}
+
 // Build explorer base from env/chain - fallback to Hedera HashScan testnet if necessary
 export function getExplorerTxUrl(txHashOrId: string) {
   const base =
@@ -184,7 +209,7 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
               txHash: typeof txHashForAbi === 'string' && looksLikeHexTx(txHashForAbi) ? (txHashForAbi as `0x${string}`) : undefined,
               logIndex: idxForAbi,
               blockNumber: blockNumForAbi,
-              timestamp: tsForAbi,
+              timestamp: normalizeToMs(tsForAbi),
               participant,
               amount,
               roundId: safeNumber(args.roundId)
@@ -212,7 +237,7 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
               txHash: typeof txHashForAbi === 'string' && looksLikeHexTx(txHashForAbi) ? (txHashForAbi as `0x${string}`) : undefined,
               logIndex: idxForAbi,
               blockNumber: blockNumForAbi,
-              timestamp: tsForAbi,
+              timestamp: normalizeToMs(tsForAbi),
               participant,
               amount
             }
@@ -236,7 +261,7 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
               txHash: typeof txHashForAbi === 'string' && looksLikeHexTx(txHashForAbi) ? (txHashForAbi as `0x${string}`) : undefined,
               logIndex: idxForAbi,
               blockNumber: blockNumForAbi,
-              timestamp: tsForAbi,
+              timestamp: normalizeToMs(tsForAbi),
               winner,
               prize,
               roundId: safeNumber(args.roundId)
@@ -280,7 +305,7 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
         txHash: typeof txHash === 'string' && looksLikeHexTx(txHash) ? (txHash as `0x${string}`) : undefined,
         logIndex: idx,
         blockNumber: blockNum,
-        timestamp: ts,
+        timestamp: normalizeToMs(ts),
         participant,
         amount,
         roundId: safeNumber(raw.args?.roundId as any)
@@ -305,7 +330,7 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
         txHash: typeof txHash === 'string' && looksLikeHexTx(txHash) ? (txHash as `0x${string}`) : undefined,
         logIndex: idx,
         blockNumber: blockNum,
-        timestamp: ts,
+        timestamp: normalizeToMs(ts),
         participant,
         amount
       }
@@ -326,7 +351,7 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
         txHash: typeof txHash === 'string' && looksLikeHexTx(txHash) ? (txHash as `0x${string}`) : undefined,
         logIndex: idx,
         blockNumber: blockNum,
-        timestamp: ts,
+        timestamp: normalizeToMs(ts),
         winner,
         prize,
         roundId: safeNumber(raw.args?.roundId as any)

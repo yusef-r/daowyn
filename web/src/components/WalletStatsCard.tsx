@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { formatUnits } from 'viem'
 import { useEvents } from '@/app/providers/events'
@@ -11,6 +11,9 @@ export default function WalletStatsCard() {
   const { address } = useAccount()
   const { events } = useEvents()
   const userAddr = address ? address.toLowerCase() : undefined
+
+  // Persist per-wallet total winnings to localStorage so it survives page refreshes
+  const [cachedWinnings, setCachedWinnings] = useState<number | undefined>(undefined)
 
   function amtToHBAR(a?: bigint | number) {
     if (a === undefined || a === null) return 0
@@ -107,33 +110,77 @@ export default function WalletStatsCard() {
     }, 0)
   }, [events, userAddr])
 
+  // Load cached winnings on user/address change
+  useEffect(() => {
+    if (!userAddr) {
+      setCachedWinnings(undefined)
+      return
+    }
+    try {
+      const key = `walletStats:totalWinnings:${userAddr}`
+      const raw = localStorage.getItem(key)
+      if (raw !== null) {
+        const n = Number(raw)
+        if (Number.isFinite(n)) setCachedWinnings(n)
+      }
+    } catch {
+      // noop
+    }
+  }, [userAddr])
+
+  // Update cache when we observe a non-zero totalWinnings greater than what's cached
+  useEffect(() => {
+    if (!userAddr) return
+    try {
+      const key = `walletStats:totalWinnings:${userAddr}`
+      const current = cachedWinnings ?? 0
+      if (totalWinnings > current) {
+        localStorage.setItem(key, String(totalWinnings))
+        setCachedWinnings(totalWinnings)
+      }
+    } catch {
+      // noop
+    }
+  }, [totalWinnings, userAddr, cachedWinnings])
+
+  // Prefer the higher of observed totalWinnings and cachedWinnings so value survives refreshes
+  const displayedWinnings = Math.max(totalWinnings, cachedWinnings ?? 0)
+
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
       <div className="p-4">
         <h3 className="text-base font-semibold">Wallet Stats</h3>
 
         <div className="mt-3">
-          {/* WINS - primary metric */}
+          {/* TOTAL WINNINGS - primary metric */}
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Trophy className="w-5 h-5 text-muted-foreground opacity-70" />
-              <span className="text-sm text-muted-foreground">Wins</span>
+              <span className="text-sm text-muted-foreground">Total Winnings</span>
             </div>
             <div className="text-right">
-              <div className="text-sm font-medium text-foreground">{wins} Wins</div>
+              <div className="text-sm font-medium text-foreground">
+                {displayedWinnings > 0
+                  ? `${displayedWinnings.toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR`
+                  : '—'}
+              </div>
             </div>
           </div>
 
           <div className="border-t border-muted-foreground/20 my-3" />
 
-          {/* Win Rate */}
+          {/* Average Entry */}
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-muted-foreground opacity-70" />
-              <span className="text-sm text-muted-foreground">Win Rate</span>
+              <span className="text-sm text-muted-foreground">Average Entry</span>
             </div>
             <div className="text-right">
-              <div className="text-sm font-medium text-foreground">{winRatePercent}%</div>
+              <div className="text-sm font-medium text-foreground">
+                {poolsEntered > 0
+                  ? `${(totalContributed / poolsEntered).toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR`
+                  : '—'}
+              </div>
             </div>
           </div>
 

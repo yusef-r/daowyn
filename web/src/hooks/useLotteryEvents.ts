@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePublicClient } from 'wagmi'
 import { LOTTERY_ABI, LOTTERY_ADDRESS } from '@/lib/contracts/lottery'
 import type { FeedEntry } from '@/types/feed'
-import { safeNumber } from '@/lib/mirror'
+import { safeNumber, normalizeToMs } from '@/lib/mirror'
 
 
 export function useLotteryEvents() {
@@ -31,8 +31,9 @@ export function useLotteryEvents() {
       address: LOTTERY_ADDRESS,
       abi: LOTTERY_ABI,
       eventName: 'EnteredPool',
-      onLogs: (logs) => {
-        const mapped: FeedEntry[] = logs.map((l) => {
+      onLogs: async (logs) => {
+        // Map base fields first (no timestamp)
+        const base = logs.map((l) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const args = (l as any)?.args ?? {}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,8 +50,35 @@ export function useLotteryEvents() {
             participant: args.player,
             amount: args.amountEntered,
             roundId: safeNumber(args.roundId)
-          }
+          } as FeedEntry
         })
+
+        // Fetch timestamps for unique block numbers (attach ms-based timestamps).
+        const blockNums = Array.from(new Set(base.map((e) => e.blockNumber).filter((n): n is number => typeof n === 'number')))
+        const tsByBlock = new Map<number, number>()
+        await Promise.all(
+          blockNums.map(async (bn) => {
+            try {
+              const blk = await client.getBlock({ blockNumber: BigInt(bn) })
+              const rawTs = blk?.timestamp
+              if (rawTs !== undefined && rawTs !== null) {
+                const n = typeof rawTs === 'bigint' ? Number(rawTs) : Number(rawTs)
+                if (Number.isFinite(n)) {
+                  const ms = n < 1e12 ? n * 1000 : n
+                  tsByBlock.set(bn, ms)
+                }
+              }
+            } catch {
+              // ignore block fetch failures; we'll fallback below
+            }
+          })
+        )
+
+        const mapped = base.map((e) => ({
+          ...e,
+          timestamp: normalizeToMs(typeof e.blockNumber === 'number' ? tsByBlock.get(e.blockNumber) ?? Date.now() : Date.now())
+        }))
+        
         push(mapped)
       },
       onError: (error) => {
@@ -64,8 +92,8 @@ export function useLotteryEvents() {
       address: LOTTERY_ADDRESS,
       abi: LOTTERY_ABI,
       eventName: 'OverageRefunded',
-      onLogs: (logs) => {
-        const mapped: FeedEntry[] = logs.map((l) => {
+      onLogs: async (logs) => {
+        const base = logs.map((l) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const args = (l as any)?.args ?? {}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,8 +109,34 @@ export function useLotteryEvents() {
             blockNumber: safeNumber(blockNumberRaw),
             participant: args.player,
             amount: args.amountRefunded
-          }
+          } as FeedEntry
         })
+
+        const blockNums = Array.from(new Set(base.map((e) => e.blockNumber).filter((n): n is number => typeof n === 'number')))
+        const tsByBlock = new Map<number, number>()
+        await Promise.all(
+          blockNums.map(async (bn) => {
+            try {
+              const blk = await client.getBlock({ blockNumber: BigInt(bn) })
+              const rawTs = blk?.timestamp
+              if (rawTs !== undefined && rawTs !== null) {
+                const n = typeof rawTs === 'bigint' ? Number(rawTs) : Number(rawTs)
+                if (Number.isFinite(n)) {
+                  const ms = n < 1e12 ? n * 1000 : n
+                  tsByBlock.set(bn, ms)
+                }
+              }
+            } catch {
+              // ignore
+            }
+          })
+        )
+
+        const mapped = base.map((e) => ({
+          ...e,
+          timestamp: normalizeToMs(typeof e.blockNumber === 'number' ? tsByBlock.get(e.blockNumber) ?? Date.now() : Date.now())
+        }))
+    
         push(mapped)
       },
       onError: (error) => {
@@ -96,10 +150,10 @@ export function useLotteryEvents() {
       address: LOTTERY_ADDRESS,
       abi: LOTTERY_ABI,
       eventName: 'WinnerPicked',
-      onLogs: (logs) => {
+      onLogs: async (logs) => {
         // Debug: inspect raw logs received from the provider
         try { console.debug('[useLotteryEvents] raw WinnerPicked logs:', logs) } catch {}
-        const mapped: FeedEntry[] = logs.map((l) => {
+        const base = logs.map((l) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const args = (l as any)?.args ?? {}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,8 +170,34 @@ export function useLotteryEvents() {
             winner: args.winner,
             prize: args.amountWon,
             roundId: safeNumber(args.roundId)
-          }
+          } as FeedEntry
         })
+
+        const blockNums = Array.from(new Set(base.map((e) => e.blockNumber).filter((n): n is number => typeof n === 'number')))
+        const tsByBlock = new Map<number, number>()
+        await Promise.all(
+          blockNums.map(async (bn) => {
+            try {
+              const blk = await client.getBlock({ blockNumber: BigInt(bn) })
+              const rawTs = blk?.timestamp
+              if (rawTs !== undefined && rawTs !== null) {
+                const n = typeof rawTs === 'bigint' ? Number(rawTs) : Number(rawTs)
+                if (Number.isFinite(n)) {
+                  const ms = n < 1e12 ? n * 1000 : n
+                  tsByBlock.set(bn, ms)
+                }
+              }
+            } catch {
+              // ignore
+            }
+          })
+        )
+
+        const mapped = base.map((e) => ({
+          ...e,
+          timestamp: normalizeToMs(typeof e.blockNumber === 'number' ? tsByBlock.get(e.blockNumber) ?? Date.now() : Date.now())
+        }))
+    
         // Debug: inspect mapped entries produced by the watcher
         try { console.debug('[useLotteryEvents] mapped WinnerPicked entries:', mapped) } catch {}
         push(mapped)

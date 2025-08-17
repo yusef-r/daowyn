@@ -120,3 +120,43 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Progress bar enhancements */
+.progress-fill {
+  background: linear-gradient(90deg, var(--chart-2), var(--chart-4), var(--chart-1));
+  background-size: 200% 100%;
+  animation: progressShift 6s linear infinite;
+  box-shadow: 0 8px 24px rgba(99,102,241,0.16), 0 0 18px rgba(99,102,241,0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-glint {
+  position: absolute;
+  left: -40%;
+  top: 0;
+  width: 40%;
+  height: 100%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+  filter: blur(8px);
+  opacity: 0.8;
+  animation: glint 3s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes progressShift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes glint {
+  0% { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+  50% { opacity: 0.9; }
+  100% { transform: translateX(220%) skewX(-20deg); opacity: 0; }
+}
+
+/* Overlay text enhancements */
+.progress-overlay {
+  text-shadow: 0 1px 0 rgba(0,0,0,0.35);
+}

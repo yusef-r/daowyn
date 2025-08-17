@@ -111,6 +111,47 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
 }
+/* App frame — subtle container to give the UI more presence while remaining low-contrast */
+:root {
+  --frame-radius: calc(var(--radius) + 6px);
+  --frame-padding: 1rem;
+  --frame-bg: rgba(255,255,255,0.02);
+  --frame-border: rgba(15,23,42,0.06);
+  --frame-shadow: 0 8px 30px rgba(2,6,23,0.06);
+}
+
+.dark {
+  --frame-bg: rgba(255,255,255,0.03);
+  --frame-border: rgba(255,255,255,0.04);
+  --frame-shadow: 0 10px 32px rgba(2,6,23,0.22);
+}
+
+/* Frame container — lightweight, motion-safe, matches existing tokens */
+.app-frame {
+  border-radius: var(--frame-radius);
+  background-color: var(--frame-bg);
+  border: 1px solid var(--frame-border);
+  box-shadow: var(--frame-shadow);
+  padding: var(--frame-padding);
+  transition: box-shadow 200ms ease, background-color 180ms ease, transform 120ms ease;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* Slightly tighter on mobile */
+@media (max-width: 640px) {
+  .app-frame {
+    padding: 0.75rem;
+    margin: 0.5rem;
+    border-radius: calc(var(--frame-radius) - 4px);
+  }
+}
+
+/* Optional accent variant when a stronger presence is desired */
+.app-frame--accent {
+  border-color: rgba(99,102,241,0.14);
+  box-shadow: 0 12px 40px rgba(99,102,241,0.06);
+}
 
 @layer base {
   * {

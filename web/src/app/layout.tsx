@@ -29,7 +29,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </div>
             </header>
-            <main className="mx-auto w-full max-w-6xl px-4 py-6">{children}</main>
+            <main className="mx-auto w-full max-w-6xl px-4 py-6">
+              <div className="app-frame w-full">
+                {children}
+              </div>
+            </main>
           </EventsProvider>
         </Providers>
         <Toaster richColors position="top-right" />

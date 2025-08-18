@@ -79,18 +79,24 @@ export default function WalletButton({
         aria-expanded={menuOpen}
         aria-busy={isConnecting || undefined}
         className={cx(
-          'relative inline-flex items-center gap-2 rounded-2xl px-3 py-1.5 text-sm font-medium',
-          // color/variant
-          variant === 'ghost'
-            ? 'border border-neutral-200 bg-transparent hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900'
-            : 'bg-blue-600 text-white hover:bg-blue-600/95',
+          'relative inline-flex items-center gap-1 rounded-xl px-2 py-1 text-xs font-medium',
+          // primary when disconnected: solid green CTA (unless connecting)
+          !isConnected && !isConnecting
+            ? 'bg-green-600 text-white border-2 border-transparent hover:bg-green-700 cursor-pointer dark:bg-green-600 dark:hover:bg-green-700'
+            : // color/variant: outline/ghost style (transparent bg, neutral border + text)
+            variant === 'ghost'
+              ? 'border border-neutral-200 bg-transparent hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900'
+              : // when connected, match chip outline thickness (1px); otherwise keep 2px for other states
+              isConnected
+                ? 'bg-transparent text-neutral-700 border border-neutral-200 hover:bg-neutral-50 cursor-pointer dark:text-neutral-300 dark:border-neutral-800 dark:hover:bg-neutral-900'
+                : 'bg-transparent text-neutral-700 border-2 border-neutral-200 hover:bg-neutral-50 cursor-pointer dark:text-neutral-300 dark:border-neutral-800 dark:hover:bg-neutral-900',
           // motion + depth (safe for reduced-motion)
           'transition-[transform,box-shadow,background-color] duration-200 ease-[cubic-bezier(.2,.7,.4,1)] will-change-transform transform-gpu',
           'hover:shadow-[0_6px_16px_rgba(0,0,0,0.10)] active:shadow-[0_2px_8px_rgba(0,0,0,0.08)]',
           'motion-safe:hover:scale-[1.015] motion-safe:active:scale-[0.985]',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70 focus-visible:ring-offset-2',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/70 focus-visible:ring-offset-2',
           // subtle sheen on hover (very light)
-          'before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl',
+          'before:pointer-events-none before:absolute before:inset-0 before:rounded-xl',
           'before:bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.12),transparent)]',
           'before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300'
         )}
@@ -99,7 +105,7 @@ export default function WalletButton({
           <span className="inline-flex items-center gap-2">
             <span
               aria-hidden
-              className="inline-block size-3 rounded-full border-2 border-current border-r-transparent animate-spin"
+              className="inline-block h-3 w-3 rounded-full border-2 border-current border-r-transparent animate-spin"
             />
             Connecting…
           </span>
@@ -109,9 +115,16 @@ export default function WalletButton({
           <span className="font-medium">Connect Wallet</span>
         ) : (
           <>
-            <span className="font-medium">{shorten(address)}</span>
-            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-              Hedera Testnet
+            <span className="inline-flex items-center gap-2.5">
+              <span className="font-medium">{shorten(address)}</span>
+              <span
+                aria-hidden
+                className={cx(
+                  'inline-block h-2 w-2 rounded-full',
+                  isConnected && !wrongNetwork ? 'bg-green-500' : 'bg-neutral-300',
+                  'transform-gpu transition-colors duration-150'
+                )}
+              />
             </span>
           </>
         )}

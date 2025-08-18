@@ -207,7 +207,7 @@ export default function LivePanel() {
                             {' '}{isWinner ? 'won' : 'entered'} {amountLabel}
                           </div>
                           <div className="feed-ts text-xs">
-                            {ts ? ts.toLocaleString() : '—'}
+                            {ts ? ts.toLocaleDateString() : '—'}
                             {txId && (
                               <a
                                 href={getExplorerTxUrl(String(txId))}

@@ -55,7 +55,7 @@ export const APPKIT_READY: boolean = (() => {
         ],
         features: { analytics: false },
         metadata: {
-          name: 'DAOWYN',
+          name: 'DAOwyn',
           description: 'Provably-fair prize pool on Hedera',
           url: typeof location !== 'undefined' ? location.origin : 'https://daowyn.xyz',
           icons: [],

@@ -116,16 +116,31 @@
   --frame-radius: calc(var(--radius) + 6px);
   --frame-padding: 1rem;
   /* Light-mode glass panel: semi-translucent with stronger presence */
-  --frame-bg: rgba(255, 255, 255, 0.7);
+  --frame-bg: rgba(255, 255, 255, 0.62);
   --frame-border: rgba(15, 23, 42, 0.06);
   --frame-shadow: 0 8px 30px rgba(2, 6, 23, 0.06);
+  /* Panel shadow: subtle lift for smaller panels (more subtle than the frame) */
+  --panel-shadow: 0 3px 10px rgba(2, 6, 23, 0.04);
 }
 
 .dark {
   /* Dark-mode: reduced transparency and darker tint to maintain contrast */
-  --frame-bg: rgba(17, 24, 39, 0.6);
+  --frame-bg: rgba(17, 24, 39, 0.55);
   --frame-border: rgba(255, 255, 255, 0.04);
   --frame-shadow: 0 10px 32px rgba(2, 6, 23, 0.22);
+  /* Dark-mode panel shadow: slightly stronger but still subtle */
+  --panel-shadow: 0 6px 18px rgba(2, 6, 23, 0.12);
+}
+
+/* Subtle panel lift — apply to common panel selectors while keeping .app-frame unchanged.
+   These selectors target the project's panel patterns (rounded + bordered cards). */
+.border.bg-card:not(.app-frame),
+.rounded-lg.border.bg-card:not(.app-frame),
+.rounded-md.border:not(.app-frame),
+.live-section:not(.app-frame),
+.feed-bubble:not(.app-frame) {
+  box-shadow: var(--panel-shadow);
+  transition: box-shadow 200ms ease;
 }
 
 /* Frame container — lightweight, motion-safe, matches existing tokens */

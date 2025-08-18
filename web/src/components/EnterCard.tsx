@@ -86,7 +86,30 @@ export default function EnterCard() {
         await refetch()
       }
     } catch (err: unknown) {
-      let message = ''; if (typeof err === 'object' && err && 'message' in err) { const m = (err as { message?: unknown }).message; message = typeof m === 'string' ? m : String(m); } else { message = String(err); }
+      // Normalize common error shapes (EIP-1193, viem, provider strings)
+      let message = ''
+      if (typeof err === 'object' && err && 'message' in err) {
+        const m = (err as { message?: unknown }).message
+        message = typeof m === 'string' ? m : String(m)
+      } else {
+        message = String(err)
+      }
+
+      // Safely extract typed fields without using `any`
+      let code: number | string | undefined
+      let name: string | undefined
+      if (typeof err === 'object' && err !== null) {
+        if ('code' in err) code = (err as { code?: number | string }).code
+        if ('name' in err) name = (err as { name?: string }).name
+      }
+
+      if (code === 4001 || name === 'USER_REJECT' || message.includes('USER_REJECT') || /reject/i.test(message)) {
+        // user cancelled — clear write-hook state so isPending doesn't stick
+        try { reset() } catch {}
+        // early return so we don't treat as other errors
+        return
+      }
+
       if (message.includes('No matching key')) {
         try { disconnect() } catch {}
         try { open?.() } catch {}

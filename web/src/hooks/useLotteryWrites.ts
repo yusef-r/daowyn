@@ -51,23 +51,50 @@ export function useEnterLottery() {
       const value = parseEther(normalized);
 
       // Solidity: function enter() external payable {}
-      const txHash = await writeContractAsync({
-        address: LOTTERY_ADDRESS as Address,
-        abi: LOTTERY_ABI,
-        functionName: 'enter',
-        value,
-      });
-
-      // Optimistically patch local snapshot (take = min(remaining, amount))
+      let txHash: string | undefined;
       try {
-        optimisticEnter(normalized);
-      } catch {
-        // noop
+        txHash = await writeContractAsync({
+          address: LOTTERY_ADDRESS as Address,
+          abi: LOTTERY_ABI,
+          functionName: 'enter',
+          value,
+        });
+    
+        // Optimistically patch local snapshot (take = min(remaining, amount))
+        try {
+          optimisticEnter(normalized);
+        } catch {
+          // noop
+        }
+      } catch (err: unknown) {
+        // Normalize common error shapes (EIP-1193, viem, provider strings)
+        let message = ''
+        if (typeof err === 'object' && err && 'message' in err) {
+          const m = (err as { message?: unknown }).message
+          message = typeof m === 'string' ? m : String(m)
+        } else {
+          message = String(err)
+        }
+    
+        const eObj = err as unknown as { code?: number | string; name?: string }
+        const code = eObj?.code
+        const name = eObj?.name
+        const isUserReject = code === 4001 || name === 'USER_REJECT' || message.includes('USER_REJECT') || /reject/i.test(message)
+    
+        if (isUserReject) {
+          // user cancelled — clear wagmi/viem hook state so isPending doesn't stick, and return quietly
+          try { resetWrite() } catch {}
+          return undefined
+        }
+    
+        // Non-user errors: clear write hook state and rethrow for upstream handling
+        try { resetWrite() } catch {}
+        throw err;
       }
-
+    
       return txHash;
     },
-    [writeContractAsync, optimisticEnter]
+    [writeContractAsync, optimisticEnter, resetWrite]
   );
 
   const reset = useCallback(() => {

@@ -161,7 +161,7 @@ export default function WalletStatsCard() {
             <div className="text-right">
               <div className="text-sm font-medium text-foreground">
                 {displayedWinnings > 0
-                  ? `${displayedWinnings.toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR`
+                  ? `${displayedWinnings.toLocaleString(undefined, { maximumFractionDigits: 2 })} HBAR`
                   : '—'}
               </div>
             </div>
@@ -178,7 +178,7 @@ export default function WalletStatsCard() {
             <div className="text-right">
               <div className="text-sm font-medium text-foreground">
                 {poolsEntered > 0
-                  ? `${(totalContributed / poolsEntered).toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR`
+                  ? `${(totalContributed / poolsEntered).toLocaleString(undefined, { maximumFractionDigits: 2 })} HBAR`
                   : '—'}
               </div>
             </div>
@@ -195,7 +195,7 @@ export default function WalletStatsCard() {
             <div className="text-right">
               <span className="text-sm font-medium text-foreground">
                 {totalContributed > 0
-                  ? `${totalContributed.toLocaleString(undefined, { maximumFractionDigits: 6 })} HBAR`
+                  ? `${totalContributed.toLocaleString(undefined, { maximumFractionDigits: 2 })} HBAR`
                   : '—'}
               </span>
             </div>

@@ -79,37 +79,39 @@
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
+  /* Monochrome dark-mode tokens — strictly neutral grays (three-layer stack) */
+  --background: #050605; /* page bg (deepest) */
+  --foreground: #E6E6E6;
+  --card: #0E110E; /* cards: slightly lighter than container */
+  --card-foreground: #E6E6E6;
+  --popover: #0E110E;
+  --popover-foreground: #E6E6E6;
+  --primary: #090B09; /* app frame / container */
+  --primary-foreground: #E6E6E6;
+  --secondary: #0E110E;
+  --secondary-foreground: #AAAAAA;
+  --muted: #0E110E;
+  --muted-foreground: #9AA3A8;
+  --accent: var(--accent-green); /* preserve green/gold accents */
+  --accent-foreground: #E6E6E6;
+  --destructive: #B00020;
+  /* White-tinted separation (borders, inputs, rings) */
+  --border: rgba(255,255,255,0.06);
+  --input: rgba(255,255,255,0.08);
+  --ring: rgba(255,255,255,0.12);
+  --chart-1: #9AA3A8;
+  --chart-2: #9AA3A8;
+  --chart-3: #9AA3A8;
+  --chart-4: #9AA3A8;
+  --chart-5: #9AA3A8;
+  --sidebar: #090B09;
+  --sidebar-foreground: #E6E6E6;
+  --sidebar-primary: #0E110E;
+  --sidebar-primary-foreground: #E6E6E6;
+  --sidebar-accent: #0E110E;
+  --sidebar-accent-foreground: #E6E6E6;
+  --sidebar-border: rgba(255,255,255,0.06);
+  --sidebar-ring: rgba(255,255,255,0.12);
 }
 /* App frame — subtle container to give the UI more presence while remaining low-contrast */
 :root {
@@ -124,12 +126,69 @@
 }
 
 .dark {
-  /* Dark-mode: reduced transparency and darker tint to maintain contrast */
-  --frame-bg: rgba(17, 24, 39, 0.55);
+  /* Dark-mode: strictly monochrome container tokens (no blue casts) */
+  --frame-bg: #090B09;
   --frame-border: rgba(255, 255, 255, 0.04);
-  --frame-shadow: 0 10px 32px rgba(2, 6, 23, 0.22);
-  /* Dark-mode panel shadow: slightly stronger but still subtle */
-  --panel-shadow: 0 6px 18px rgba(2, 6, 23, 0.12);
+  --frame-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+  /* Dark-mode panel shadow: neutral, subtle */
+  --panel-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+/* Dark-theme tokens (added): near-black base, translucent cards, accents, and utilities */
+:root {
+  --bg-base: #050605;
+  --bg-contrast: #090B09;
+  --bg-gradient: linear-gradient(135deg, #050605 0%, #090B09 100%);
+  --background-dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Ccircle cx='1' cy='1' r='0.6' fill='rgba(255,255,255,0.03)'/%3E%3C/svg%3E");
+  --panel-dark: #090B09; /* frame / container */
+  --card-fill: #0E110E; /* cards */
+  --card-border: rgba(255,255,255,0.06);
+  --card-shadow-up: 0 -6px 18px rgba(255,255,255,0.03);
+  --card-shadow-down: 0 8px 24px rgba(0,0,0,0.6);
+  --card-shadow: var(--card-shadow-up), var(--card-shadow-down);
+  --glass-blur: 8px;
+  --text-dark: #E6E6E6;
+  --muted-dark: #9AA3A8;
+  --accent-green: #1FA67A;
+  --accent-gold: #D1A84A;
+  --accent-green-strong: #147A55;
+  --accent-gold-strong: #A07A2E;
+}
+
+/* Support data-theme toggling if used */
+[data-theme="dark"] {
+  --background: var(--bg-base);
+  --background-gradient: var(--bg-gradient);
+  --background-dots: var(--background-dots);
+  --panel: var(--panel-dark);
+  --card: var(--card-fill);
+  --card-border: var(--card-border);
+  --card-shadow: var(--card-shadow);
+  --glass-blur: var(--glass-blur);
+  --text: var(--text-dark);
+  --muted: var(--muted-dark);
+  --accent-green: var(--accent-green);
+  --accent-gold: var(--accent-gold);
+  --accent-green-strong: var(--accent-green-strong);
+  --accent-gold-strong: var(--accent-gold-strong);
+}
+
+/* Also apply tokens when .dark class is present (existing runtime toggle) */
+.dark {
+  --background: var(--bg-base);
+  --background-gradient: var(--bg-gradient);
+  --background-dots: var(--background-dots);
+  --panel: var(--panel-dark);
+  --card: var(--card-fill);
+  --card-border: var(--card-border);
+  --card-shadow: var(--card-shadow);
+  --glass-blur: var(--glass-blur);
+  --text: var(--text-dark);
+  --muted: var(--muted-dark);
+  --accent-green: var(--accent-green);
+  --accent-gold: var(--accent-gold);
+  --accent-green-strong: var(--accent-green-strong);
+  --accent-gold-strong: var(--accent-gold-strong);
 }
 
 /* Subtle panel lift — apply to common panel selectors while keeping .app-frame unchanged.
@@ -171,6 +230,12 @@
   box-shadow: 0 12px 40px rgba(99,102,241,0.06);
 }
 
+/* Dark-mode override: neutral white-tinted accent (remove blue cast) */
+.dark .app-frame--accent {
+  border-color: rgba(255,255,255,0.06);
+  box-shadow: 0 12px 40px rgba(255,255,255,0.03);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -188,14 +253,37 @@
   /* Dark-mode fallback: reduced-transparency dark gradient with lighter dot-grid */
   .dark body {
     background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Ccircle cx='1' cy='1' r='0.6' fill='rgba(255,255,255,0.03)'/%3E%3C/svg%3E"),
-      linear-gradient(135deg, rgba(10,14,20,0.7) 0%, rgba(15,20,28,0.7) 100%);
-    background-color: var(--background);
+      var(--background-dots),
+      var(--bg-gradient);
+    background-color: var(--bg-base);
     background-repeat: repeat, no-repeat;
     background-attachment: fixed, fixed;
     background-size: auto, cover;
   }
 }
+
+/* Card styles: dark glass surfaces for premium depth */
+.card {
+  background: var(--card); /* rgba(255,255,255,0.03) — dark glass */
+  border: 1px solid var(--card-border); /* 1px crisp edge */
+  border-radius: 0.6rem;
+  box-shadow: var(--card-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  background-clip: padding-box;
+  transition: box-shadow 200ms ease, transform 160ms ease;
+}
+
+/* Optional inner subtle glow (for critical premium cards) */
+.card--glow {
+  box-shadow: 0 -8px 22px rgba(255,255,255,0.035), 0 12px 40px rgba(2,6,23,0.6);
+}
+
+/* Suggested opacity ranges */
+/* - card fill: rgba(255,255,255,0.02–0.05) (0.03 recommended) */
+/* - card border: rgba(255,255,255,0.04–0.08) (0.06 recommended) */
+/* - upward white tint: rgba(255,255,255,0.02–0.05) (0.03 recommended) */
+/* - dark drop shadow: rgba(2,6,23,0.5–0.7) (0.6 recommended) */
 
 /* Progress bar enhancements */
 /* Track: cool neutral for contrast and accessibility */
@@ -280,7 +368,7 @@
 }
 
 /* Goal tick: thin vertical gold marker at the target */
-.goal-tick {
+/* .goal-tick {
   position: absolute;
   top: 6%;
   bottom: 6%;
@@ -292,7 +380,7 @@
   pointer-events: none;
   opacity: 0.98;
   transition: transform 240ms ease, box-shadow 240ms ease, opacity 200ms ease;
-}
+} */
 .tick-pulse {
   animation: tickPulse 420ms ease 1;
 }
@@ -628,3 +716,187 @@
 .dark-toggle {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ---- Monochrome dark-mode utility overrides ----
+   Apply only when .dark is present. These map common Tailwind neutral/blue
+   utilities to the strict equal‑RGB monochrome tokens defined above.
+   Light mode unaffected.
+*/
+.dark .bg-neutral-900,
+.dark .dark\:bg-neutral-900,
+.dark .bg-neutral-800,
+.dark .dark\:bg-neutral-800 {
+  background-color: var(--panel) !important;
+  background-image: none !important;
+  background-blend-mode: normal !important;
+}
+
+.dark .bg-neutral-700,
+.dark .dark\:bg-neutral-700 {
+  background-color: var(--card) !important;
+  background-image: none !important;
+}
+
+.dark .border-neutral-800,
+.dark .dark\:border-neutral-800,
+.dark .border-neutral-700,
+.dark .dark\:border-neutral-700 {
+  border-color: var(--card-border) !important;
+}
+
+.dark .hover\:bg-neutral-800:hover,
+.dark .dark\:hover\:bg-neutral-800:is(.dark *):hover {
+  background-color: var(--card) !important;
+}
+
+/* Text */
+.dark .text-neutral-300,
+.dark .dark\:text-neutral-300,
+.dark .text-neutral-400,
+.dark .dark\:text-neutral-400 {
+  color: var(--muted-foreground) !important;
+}
+
+/* Neutralize common blue utilities in dark mode (prevent blue casts).
+   DO NOT override accent-green / accent-gold classes — those are preserved.
+*/
+.dark .bg-blue-600,
+.dark .dark\:bg-blue-600,
+.dark .text-blue-600,
+.dark .dark\:text-blue-600,
+.dark .bg-blue-500,
+.dark .dark\:bg-blue-500,
+.dark .bg-sky-500,
+.dark .dark\:bg-sky-500 {
+  background-color: var(--card) !important;
+  color: var(--muted-foreground) !important;
+  background-image: none !important;
+}
+
+/* Ensure hover/active blue variants are also neutralized */
+.dark .hover\:bg-blue-600:hover,
+.dark .dark\:hover\:bg-blue-600:is(.dark *):hover,
+.dark .active\:bg-blue-600:active,
+.dark .dark\:active\:bg-blue-600:is(.dark *) {
+  background-color: var(--card) !important;
+  color: var(--muted-foreground) !important;
+}
+
+/* Preserve accent color tokens — only use when intended as accents */
+
+/* ---- Component-specific dark-mode neutralizations (appended) ----
+   Targets components with hard-coded light colors and progress visuals.
+   Light mode is preserved; these rules only change appearance when .dark is active.
+*/
+
+/* ActivityFeed: preserve light-mode inline look, neutralize in dark */
+.activity-feed__degraded {
+  background: #fff3cd;
+  color: #856404;
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.activity-feed__empty {
+  padding: 16px;
+  color: #666;
+}
+.activity-feed__item {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+.activity-feed__row { display:flex; justify-content:space-between; gap:12px; }
+.activity-feed__muted { font-size:13px; color:#666; }
+.activity-feed__muted--small { font-size:12px; color:#666; }
+.activity-feed__no-tx { color:#999; font-size:12px; }
+
+/* Network badge: keep light mode as-is; provide dark fallback */
+.network-badge { /* light-mode colors are set inline in component */ }
+.network-badge__label { /* inline gold in light mode */ }
+.network-badge__warning { /* inline warning in light mode */ }
+
+/* Dark-mode overrides (strict monochrome + preserved accents) */
+.dark {
+  /* LivePanel tokens -> neutral surfaces */
+  --lp-card-bg: var(--card);
+  --lp-card-bg-strong: var(--card);
+  --lp-avatar-bg: rgba(255,255,255,0.03);
+  --lp-bubble-bg: rgba(255,255,255,0.03);
+  --lp-bubble-bg-dark: rgba(255,255,255,0.03);
+  --lp-winner-gold: var(--accent-gold-strong);
+}
+
+/* ActivityFeed dark neutralization */
+.dark .activity-feed__degraded {
+  background: var(--card);
+  color: var(--muted-foreground);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border: 1px solid var(--card-border);
+  box-shadow: inset 0 -6px 16px rgba(255,255,255,0.02);
+}
+.dark .activity-feed__empty { color: var(--muted-foreground); padding: 16px; }
+.dark .activity-feed__item { padding: 12px; border-bottom: 1px solid var(--card-border); background: transparent; }
+.dark .activity-feed__muted,
+.dark .activity-feed__muted--small,
+.dark .activity-feed__no-tx { color: var(--muted-foreground) !important; }
+
+/* Network badge dark neutralization — swap outline/text with wallet button */
+.dark .network-badge {
+  background: var(--card) !important;
+  border-color: var(--card-border) !important;
+  color: var(--muted-foreground) !important;
+}
+.dark .network-badge__label { color: var(--muted-foreground) !important; }
+.dark .network-badge__warning { color: var(--muted-foreground) !important; }
+
+/* Wallet button dark override — force white text + visible white outline */
+.dark .wallet-button {
+  color: #FFFFFF !important;
+  border-color: rgba(255,255,255,0.95) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+  background-clip: padding-box;
+}
+.dark .wallet-button:hover,
+.dark .wallet-button:focus {
+  color: #FFFFFF !important;
+  border-color: rgba(255,255,255,0.95) !important;
+}
+.dark .wallet-button:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.12) !important;
+}
+
+/* Progress visuals: disable colored stripes/glints and remove neon glows */
+.dark .progress-stripes { display: none !important; }
+.dark .progress-glint { display: none !important; }
+.dark .progress-track {
+  background: rgba(255,255,255,0.02) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02) !important;
+}
+
+
+/* Card glow: remove colored lift, keep subtle white-tinted wash */
+.dark .card--glow {
+  box-shadow: 0 -8px 22px rgba(255,255,255,0.035), 0 12px 40px rgba(0,0,0,0.6) !important;
+}
+
+/* Hero radial wash: neutralize and reduce saturation in dark */
+.dark .page-hero::before {
+  background: radial-gradient(circle at 50% 18%,
+    rgba(255,255,255,0.06) 0%,
+    rgba(255,255,255,0.04) 22%,
+    rgba(255,255,255,0.02) 40%,
+    transparent 65%) !important;
+  filter: blur(18px) !important;
+  opacity: 0.12 !important;
+}
+
+/* Site title: remove green glow in dark mode */
+.dark .site-title {
+  text-shadow: 0 0 6px rgba(255,255,255,0.02) !important;
+}
+
+/* Remove any remaining explicit blue hover/outline remnants on toggles in dark */
+.dark .dark-toggle:focus { box-shadow: 0 0 0 4px rgba(255,255,255,0.06) !important; border-color: var(--ring) !important; }

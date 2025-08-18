@@ -85,14 +85,14 @@ export default function ActivityFeed() {
       </div>
 
       {degraded && (
-        <div role="status" aria-live="assertive" style={{ background: '#fff3cd', color: '#856404', padding: 8, borderRadius: 6, marginBottom: 12 }}>
+        <div role="status" aria-live="assertive" className="activity-feed__degraded">
           Mirror Node history is degraded — showing live events only. We will keep retrying in the background.
         </div>
       )}
 
       <div>
         {filtered.length === 0 ? (
-          <div style={{ padding: 16, color: '#666' }}>No events found.</div>
+          <div className="activity-feed__empty">No events found.</div>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {filtered.map((e, i) => {
@@ -101,11 +101,11 @@ export default function ActivityFeed() {
               const tx = entry.txHash
               const logIndex = entry.logIndex
               return (
-                <li key={`${tx ?? i}-${logIndex ?? 0}`} style={{ padding: 12, borderBottom: '1px solid #eee' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <li key={`${tx ?? i}-${logIndex ?? 0}`} className="activity-feed__item">
+                  <div className="activity-feed__row">
                     <div>
                       <strong>{entry.type}</strong>
-                      <div style={{ fontSize: 13, color: '#666' }}>
+                      <div className="activity-feed__muted">
                         {entry.type === 'EnteredPool' && entry.participant && (
                           <>
                             Participant: <a href={getExplorerAccountUrl(entry.participant)} target="_blank" rel="noreferrer">{entry.participant}</a>
@@ -127,12 +127,12 @@ export default function ActivityFeed() {
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', minWidth: 150 }}>
-                      <div style={{ fontSize: 12, color: '#666' }}>{ts ? ts.toLocaleString() : '—'}</div>
+                      <div className="activity-feed__muted activity-feed__muted--small">{ts ? ts.toLocaleString() : '—'}</div>
                       <div style={{ marginTop: 6 }}>
                         {tx ? (
                           <a href={getExplorerTxUrl(String(tx))} target="_blank" rel="noreferrer">View tx</a>
                         ) : (
-                          <span style={{ color: '#999', fontSize: 12 }}>No tx</span>
+                          <span className="activity-feed__no-tx">No tx</span>
                         )}
                       </div>
                     </div>

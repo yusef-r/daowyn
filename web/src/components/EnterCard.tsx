@@ -125,19 +125,19 @@ export default function EnterCard() {
         ) : (
           <>
             {isReadyStage && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-300">
                 Pool is locked and ready for draw. New entries are temporarily disabled.
               </div>
             )}
 
-            {!onExpectedNetwork && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+            {connected && !onExpectedNetwork && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-300">
                 Wrong network. Please switch to Hedera Testnet.
               </div>
             )}
 
             {!connected && (
-              <div className="rounded-md border border-blue-300 bg-blue-50 p-3 text-sm text-blue-800">
+              <div className="rounded-md border border-green-400 bg-green-100 p-3 text-sm text-green-900 dark:border-green-700 dark:bg-green-900/10 dark:text-green-300">
                 Connect your wallet to enter the pool.
               </div>
             )}

@@ -22,14 +22,14 @@ export default function NetworkBadge({
   return (
     <div
       className={clsx(
-        'inline-flex items-center gap-1 rounded-xl border px-2 py-1 text-xs font-medium bg-[#FFFBF2] border-[#E6C86B]',
+        'network-badge inline-flex items-center gap-1 rounded-xl border px-2 py-1 text-xs font-medium bg-[#FFFBF2] border-[#E6C86B]',
         className
       )}
       aria-live="polite"
     >
-      <span className="font-medium text-[#B8860B]">{chainName}</span>
+      <span className="network-badge__label font-medium text-[#B8860B]">{chainName}</span>
       {!onExpected && (
-        <span className="text-[#996515]">Wrong network</span>
+        <span className="network-badge__warning text-[#996515]">Wrong network</span>
       )}
       {showExplorerLink && (
         <a

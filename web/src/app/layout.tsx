@@ -9,6 +9,7 @@ import NetworkBadge from "@/components/NetworkBadge";
 import WalletButton from "@/components/WalletButton";
 import Link from "next/link";
 import { EventsProvider } from "./providers/events";
+import DarkModeToggle from "@/components/DarkModeToggle";
 
 const Providers = dynamic(() => import('./providers'), { ssr: false })
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </main>
           </EventsProvider>
         </Providers>
+        <DarkModeToggle />
         <Toaster richColors position="top-right" />
       </body>
     </html>

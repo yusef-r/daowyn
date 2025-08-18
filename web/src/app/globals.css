@@ -454,6 +454,55 @@
 /* Helper small utilities */
 .lp-muted { color: var(--muted-foreground); font-size: 0.9rem; }
 
+/* Radial wash behind the hero — toned down and confined to the hero area */
+.page-hero {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+.page-hero::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 12%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 90%;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 18%,
+    rgba(156,163,175,0.30) 0%,
+    rgba(156,163,175,0.19) 22%,
+    rgba(156,163,175,0.10) 40%,
+    transparent 65%);
+  filter: blur(20px);
+  opacity: 0.30;
+  z-index: 0;
+  mix-blend-mode: normal;
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
+}
+
+/* Ensure title/subtitle render above the wash */
+.page-hero .site-title,
+.page-hero .site-subtitle {
+  position: relative;
+  z-index: 1;
+}
+
+/* Dark-mode variant: subtler on dark backgrounds */
+.dark .page-hero::before {
+  background: radial-gradient(circle at 50% 18%,
+    rgba(156,163,175,0.18) 0%,
+    rgba(156,163,175,0.12) 22%,
+    rgba(156,163,175,0.04) 40%,
+    transparent 65%);
+  filter: blur(18px);
+  opacity: 0.18;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .page-hero::before { transition: none; filter: blur(12px); opacity: 0.18; }
+}
 /* Site title & subtitle — added for DAOwyn header */
 .site-title {
   font-size: 36px;
@@ -490,4 +539,92 @@
 }
 .dark .site-subtitle {
   color: #aaaaaa;
+}
+
+/* Dark mode iOS-style toggle (bottom-right) */
+.dark-toggle-wrapper {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* Reset button basics: use relative + absolute knob for smoother animation */
+.dark-toggle {
+  --toggle-w: 52px;
+  --toggle-h: 30px;
+  --knob-size: 24px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--toggle-w);
+  height: var(--toggle-h);
+  padding: 0;
+  background: var(--input);
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(2,6,23,0.06);
+  cursor: pointer;
+  transition: background 180ms ease, box-shadow 160ms ease;
+  overflow: visible;
+}
+
+/* On state: subtle green → amber hint (kept on background only) */
+.dark-toggle.dark-toggle-on {
+  background: linear-gradient(90deg, rgba(34,197,94,0.12), rgba(245,158,11,0.09));
+}
+
+/* Knob: absolutely positioned for consistent motion */
+.dark-toggle-knob {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%) translateX(0);
+  width: var(--knob-size);
+  height: var(--knob-size);
+  border-radius: 9999px;
+  background: var(--card);
+  box-shadow: 0 6px 18px rgba(2,6,23,0.12);
+  transition: transform 260ms cubic-bezier(.2,.9,.2,1), background 180ms ease, box-shadow 180ms ease;
+  will-change: transform;
+  display: block;
+}
+
+/* When toggled on, move knob to right and brighten */
+.dark-toggle.dark-toggle-on .dark-toggle-knob {
+  transform: translateY(-50%) translateX(calc(var(--toggle-w) - var(--knob-size) - 6px));
+  background: linear-gradient(180deg, #ffffff, #f3f4f6);
+  box-shadow: 0 10px 28px rgba(2,6,23,0.18);
+}
+
+/* Focus & keyboard visibility */
+.dark-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.08);
+  border-color: var(--ring);
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .dark-toggle,
+  .dark-toggle-knob {
+    transition: none !important;
+  }
+}
+
+/* Slightly smaller on small viewports */
+@media (max-width: 480px) {
+  .dark-toggle-wrapper { right: 0.75rem; bottom: 0.75rem; }
+  .dark-toggle { --toggle-w: 44px; --toggle-h: 26px; --knob-size: 20px; }
+}
+
+/* Make sure it doesn't capture pointer-events when hidden by overlays */
+.dark .dark-toggle,
+.dark-toggle {
+  -webkit-tap-highlight-color: transparent;
 }

@@ -12,7 +12,7 @@ export default function Home() {
   return (
     <main className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex-1 text-center">
+        <div className="flex-1 text-center page-hero">
           <h1 className="site-title">DAOwyn</h1>
           <p className="site-subtitle">Provably fair decentralized lottery on Hedera</p>
         </div>

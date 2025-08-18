@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
               <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4">
                 <Link href="/" className="text-sm font-semibold">
-                  daowyn
+                  DAOwyn
                 </Link>
                 <div className="flex items-center gap-2">
                   <NetworkBadge />

@@ -418,3 +418,41 @@
 
 /* Helper small utilities */
 .lp-muted { color: var(--muted-foreground); font-size: 0.9rem; }
+
+/* Site title & subtitle — added for DAOwyn header */
+.site-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #0b0b0b; /* slightly softer than pure black */
+  /* subtle drop shadow + soft green glow (made a bit more visible) */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 14px rgba(34, 197, 94, 0.14);
+  margin: 0;
+  line-height: 1.05;
+}
+
+/* Compact modifier: preserves surrounding font-size/weight when used alongside Tailwind text classes */
+.site-title--compact {
+  font-size: inherit !important;
+  font-weight: inherit;
+  line-height: inherit;
+  text-shadow: inherit;
+}
+
+/* Secondary subheader directly under the site title */
+.site-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  color: #666666; /* clearly secondary */
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+  line-height: 1.25;
+}
+
+/* Dark-mode adjustments */
+.dark .site-title {
+  color: #e6e6e6;
+  text-shadow: 0 0 10px rgba(34, 197, 94, 0.08);
+}
+.dark .site-subtitle {
+  color: #aaaaaa;
+}

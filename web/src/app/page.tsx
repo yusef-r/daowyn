@@ -12,13 +12,12 @@ export default function Home() {
   return (
     <main className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">daowyn</h1>
+        <div className="flex-1 text-center">
+          <h1 className="site-title">DAOwyn</h1>
+          <p className="site-subtitle">Provably fair decentralized lottery on Hedera</p>
+        </div>
         {/* Reown/Web3Modal injects this element */}
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        {isConnected ? `Connected: ${address}` : "Not connected"}
-      </p>
 
       <div className="grid gap-6 md:grid-cols-2">
         <StatusCard />

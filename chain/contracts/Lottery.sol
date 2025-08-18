@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
+interface IHederaPRNG {
+    function getPseudorandomSeed() external returns (bytes32);
+}
+
 /**
  * @title A Production-Ready Decentralized Prize Pool
  * @author HBET Team
@@ -17,10 +21,13 @@ contract Lottery {
     // The minimum balance required to lock the pool and make it ready for a draw.
     // Use tinybars (8 decimals) for all readiness math.
     uint256 public constant POOL_TARGET = 10 * 10**8; // 10 HBAR (tinybars)
-
+    
     // The protocol fee is a percentage. We define the rate here: 25 / 1000 = 2.5%.
     uint256 public constant FEE_NUMERATOR = 25;
     uint256 public constant FEE_DENOMINATOR = 1000;
+
+    // Hedera PRNG precompile binding (precompile address: 0x169)
+    IHederaPRNG internal constant PRNG = IHederaPRNG(address(0x169));
 
     // Tinybar-native: msg.value and address(this).balance are treated as tinybars (8 decimals).
     
@@ -200,7 +207,8 @@ contract Lottery {
         stage = Stage.Drawing;
   
         // 3. Select a winner.
-        uint256 randomIndex = uint(keccak256(abi.encodePacked(block.timestamp, participantCount))) % participantCount;
+        bytes32 seed = PRNG.getPseudorandomSeed();
+        uint256 randomIndex = uint256(seed) % participantCount;
         address payable winner = participants[randomIndex];
   
         // 4. Perform the dynamic payout based on the contract's net balance.

@@ -6,6 +6,7 @@ import { formatUnits } from 'viem'
 import useLotteryReads from '@/hooks/useLotteryReads'
 import { useEvents } from '@/app/providers/events'
 import type { FeedEntry } from '@/types/feed'
+import { getExplorerTxUrl } from '@/lib/mirror'
 import { LOTTERY_ADDRESS, LOTTERY_ABI } from '@/lib/contracts/lottery'
 
 export default function LivePanel() {
@@ -191,6 +192,7 @@ export default function LivePanel() {
                       ev.txHash ??
                       (ev as unknown as { transaction_id?: string }).transaction_id ??
                       `${ev.blockNumber ?? ''}-${ev.logIndex ?? 0}-${ev.timestamp ?? i}`
+                    const txId = ev.txHash ?? (ev as unknown as { transaction_id?: string }).transaction_id
                     return (
                       <li
                         key={keyStr}
@@ -204,7 +206,19 @@ export default function LivePanel() {
                             <span className="font-medium">{isWinner ? 'Winner' : 'Player'} {formatShort(String(participant))}</span>
                             {' '}{isWinner ? 'won' : 'entered'} {amountLabel}
                           </div>
-                          <div className="feed-ts text-xs">{ts ? ts.toLocaleString() : '—'}</div>
+                          <div className="feed-ts text-xs">
+                            {ts ? ts.toLocaleString() : '—'}
+                            {txId && (
+                              <a
+                                href={getExplorerTxUrl(String(txId))}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs underline underline-offset-2 text-muted-foreground hover:opacity-80 ml-2"
+                              >
+                                View
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </li>
                     )

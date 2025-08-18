@@ -6,6 +6,9 @@ A production-minded decentralized prize pool built on Hedera that delivers prova
 
 This product combines a simple, low-friction user experience with auditable randomness and a minimal server surface for canonical state. The result is a prize product that is easy for users to use, easy for operators to verify, and straightforward to audit.
 
+> **🚀 Live Demo:** [Try it on Hedera Testnet](https://www.daowyn.xyz)  
+> **Requirements:** HashPack or Kabila wallet with Testnet ECDSA account
+
 ## Key Features
 
 - **Fair & auditable draws:** Hedera PRNG + published tx IDs; anyone can verify results.

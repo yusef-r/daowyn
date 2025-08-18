@@ -56,8 +56,8 @@ export const APPKIT_READY: boolean = (() => {
         features: { analytics: false },
         metadata: {
           name: 'DAOWYN',
-          description: 'Hedera dApp',
-          url: typeof location !== 'undefined' ? location.origin : 'http://localhost:3000',
+          description: 'Provably-fair prize pool on Hedera',
+          url: typeof location !== 'undefined' ? location.origin : 'https://daowyn.xyz',
           icons: [],
         },
       })

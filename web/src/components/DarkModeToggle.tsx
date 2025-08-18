@@ -7,16 +7,21 @@ const THEME_KEY = 'theme'
 export default function DarkModeToggle() {
   // mounted controls whether transitions should run (prevents initial jump)
   const [mounted, setMounted] = useState(false)
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    const stored = localStorage.getItem(THEME_KEY)
-    if (stored === 'dark') return true
-    if (stored === 'light') return false
-    // default to light (off) when no stored preference
-    return false
-  })
-
+  // init to a safe default for SSR/hydration; actual value synced on mount
+  const [isDark, setIsDark] = useState<boolean>(false)
+  
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = localStorage.getItem(THEME_KEY)
+    if (stored === 'dark') setIsDark(true)
+    else if (stored === 'light') setIsDark(false)
+    else {
+      // fallback to any existing document class (inline script) or OS preference
+      if (document.documentElement.classList.contains('dark')) setIsDark(true)
+      else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setIsDark(true)
+      else setIsDark(false)
+    }
+    // allow transitions after initial sync
     setMounted(true)
   }, [])
 

@@ -89,7 +89,7 @@ export default function AutoDrawDialog() {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
-      <div className="relative w-full max-w-md rounded-lg bg-card p-6 shadow-lg">
+      <div className="relative w-full max-w-md rounded-lg bg-card p-6 shadow-lg dark:rounded-xl dark:shadow-[0_-10px_30px_rgba(255,255,255,0.10),0_14px_42px_rgba(0,0,0,0.6)] border border-transparent dark:border-[rgba(255,255,255,0.08)]">
         {winner ? (
           <div>
             <h3 className="text-2xl font-extrabold">🎉 WE HAVE A WINNER!</h3>

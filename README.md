@@ -43,7 +43,7 @@ flowchart LR
   Contract -->|2. emit events / state| Mirror
   Mirror -->|3. update UI state| UI
   Mirror -->|4. pool ready signal| Keeper
-  Keeper -->|5. triggerDraw()| Contract
+  Keeper -->|5. triggerDraw| Contract
   Contract -->|6. WinnerPicked event| Mirror
   Mirror -->|7. show result| UI
 

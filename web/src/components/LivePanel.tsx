@@ -68,46 +68,6 @@ export default function LivePanel() {
   
   const userHBAR = useMemo(() => userEntries.reduce((s, e) => s + amtToHBAR(e.amount), 0), [userEntries])
 
-  // Debug: surface key values to help diagnose empty-feed / staleness issues.
-  // Remove these logs after investigation.
-  type AbiEventEntry = { type?: string; name?: string }
-  const abiEventNames = Array.isArray(LOTTERY_ABI)
-    ? (LOTTERY_ABI
-        .filter((i): i is AbiEventEntry => (i as AbiEventEntry).type === 'event')
-        .map((e) => e.name ?? '') as string[])
-    : []
-  try {
-    // Compute lightweight summary metrics to help root-cause event filtering issues.
-    const uniqueEventNames = Array.from(new Set((events ?? []).map((e) => e.type ?? '')))
-    const blockNumbers = (events ?? [])
-      .map((e) => (typeof e.blockNumber === 'number' ? e.blockNumber : undefined))
-      .filter((n): n is number => typeof n === 'number')
-    const firstBlockSeen = blockNumbers.length > 0 ? Math.min(...blockNumbers) : undefined
-    const lastBlockSeen = blockNumbers.length > 0 ? Math.max(...blockNumbers) : undefined
-    // estimate a sensible startBlock suggestion (used by EventsProvider as lastSeen - 2)
-    const estimatedChosenStartBlock = lastBlockSeen !== undefined ? Math.max(0, lastBlockSeen - 2) : undefined
-    const currentRoundIdForDebug = typeof roundId === 'number' ? roundId : undefined
-
-    console.debug('LivePanel debug', {
-      eventsLength: events?.length,
-      currentRoundEventsLength: currentRoundEvents?.length,
-      enteredEventsLength: enteredEvents?.length,
-      netHBAR,
-      userAddr,
-      userHBAR,
-      lotteryAddress: LOTTERY_ADDRESS,
-      abiEventNames,
-      uniqueEventNames,
-      firstBlockSeen,
-      lastBlockSeen,
-      estimatedChosenStartBlock,
-      currentRoundId: currentRoundIdForDebug,
-      eventsRoundTypes: events?.slice(0, 20).map((ev) => ({ roundId: ev.roundId, type: ev.type, blockNumber: ev.blockNumber, logIndex: ev.logIndex }))
-    })
-  } catch (err) {
-    // swallow any debug logging errors in production render paths
-    // (shouldn't happen, but safe-guarding UI).
-  }
 
   // Make the panel more compact to better match the Prize Pool card height.
   // Show a slightly larger history in the live panel so more activity is visible.

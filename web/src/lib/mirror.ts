@@ -142,8 +142,6 @@ export function safeNumber(value?: number | bigint | string | null): number | un
 // Map Mirror Node log object to a normalized feed entry compatible with useLotteryEvents.LotteryEvent
 export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
   try {
-    // Debug: surface raw mirror log for diagnosing mapping issues (keep shallow to avoid circular)
-    try { console.debug('[mirror] mapMirrorLogToEntry raw log sample', raw) } catch {}
     const topic0 = (raw.topic0 as string | undefined) ?? raw.topics?.[0] ?? ''
     const data = raw.data as string | undefined
     const transaction_hash = raw.transaction_hash as string | undefined
@@ -153,10 +151,6 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
     const consensus_timestamp = raw.consensus_timestamp
 
     // Log raw Mirror response so we can distinguish "no logs" vs "logs but mapping returned null"
-    try {
-      // lightweight debug; avoid throwing if stringify fails
-      console.debug('[mirror] raw log:', raw)
-    } catch {}
 
     const topics = (raw.topics as string[] | undefined) ?? (raw.topic0 ? [String(raw.topic0)] : [])
 
@@ -217,7 +211,6 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
             // Ensure a stable transaction identifier for Hedera tx ids (mirror may return non-hex ids)
             ;(entry as any).transaction_id =
               typeof txHashForAbi === 'string' && !looksLikeHexTx(txHashForAbi) ? txHashForAbi : transaction_id ?? undefined
-            try { console.debug('[mirror] mapped entry (abi decode)', { name, entry }) } catch {}
             return entry
           }
 
@@ -241,7 +234,6 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
               participant,
               amount
             }
-            try { console.debug('[mirror] mapped entry (abi decode)', { name, entry }) } catch {}
             return entry
           }
 
@@ -269,7 +261,6 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
             // Ensure a stable transaction identifier for Hedera tx ids (mirror may return non-hex ids)
             ;(entry as any).transaction_id =
               typeof txHashForAbi === 'string' && !looksLikeHexTx(txHashForAbi) ? txHashForAbi : transaction_id ?? undefined
-            try { console.debug('[mirror] mapped entry (abi decode)', { name, entry }) } catch {}
             return entry
           }
         } catch {
@@ -282,8 +273,7 @@ export function mapMirrorLogToEntry(raw: MirrorLog): FeedEntry | null {
 
     const sig = String(topic0).toLowerCase()
     // Debug: signature/topic inspection to see why ABI decode may have failed
-    try { console.debug('[mirror] topic0 signature', { topic0, sig, args: raw.args }) } catch {}
-    
+       
     const txRaw = transaction_hash ?? transaction_id
     const txHash = normalizeTxHash(txRaw)
     const blockNum = block_number !== undefined ? Number(String(block_number)) : undefined

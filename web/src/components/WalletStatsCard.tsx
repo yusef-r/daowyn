@@ -53,52 +53,6 @@ export default function WalletStatsCard() {
     return s.size
   }, [userEntered])
 
-  const wins = useMemo(
-    () => events.filter((e) => e.type === 'WinnerPicked' && e.winner && String(e.winner).toLowerCase() === userAddr).length,
-    [events, userAddr]
-  )
-
-  // Lightweight debug to inspect WinnerPicked events and their roundId/prize shapes
-  try {
-    const winnerEvents = (events?.filter((ev) => ev.type === 'WinnerPicked') ?? []) as unknown[]
-    const winnerEventsSample = winnerEvents.slice(0, 5).map((ev) => {
-      const asRec = ev as { prize?: bigint | number; amount?: bigint | number; winner?: string; roundId?: number }
-      const asWinner = ev as { winner?: string }
-      return {
-        winner: asWinner.winner,
-        prize: asRec.prize ?? asRec.amount,
-        roundId: asRec.roundId,
-        roundIdType: typeof asRec.roundId
-      }
-    })
-    // Summary (existing)
-    console.debug('WalletStats debug', {
-      winnerEventsTotal: winnerEvents.length,
-      winnerEventsSample
-    })
-
-    // Full sample for deeper inspection (print first 10 full event objects)
-    try {
-      // Avoid potential circular structure issues by attempting shallow stringification,
-      // but also log the raw objects as a fallback when stringify fails.
-      const sample = winnerEvents.slice(0, 10)
-      try {
-        console.debug('WalletStats debug - winnerEventsSampleFull (stringified):', JSON.stringify(sample, (_k, v) => {
-          // Convert BigInt to string for safe stringify
-          if (typeof v === 'bigint') return v.toString()
-          return v
-        }, 2))
-      } catch {
-        console.debug('WalletStats debug - winnerEventsSampleFull (raw):', sample)
-      }
-    } catch {}
-  } catch {}
-
-  const winRatePercent = useMemo(() => {
-    if (poolsEntered === 0) return 0
-    return Math.round((wins / poolsEntered) * 100)
-  }, [wins, poolsEntered])
-
   const totalWinnings = useMemo(() => {
     return events.reduce((s, e) => {
       if (e.type === 'WinnerPicked' && e.winner && String(e.winner).toLowerCase() === userAddr) {

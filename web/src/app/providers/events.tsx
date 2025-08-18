@@ -121,7 +121,6 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         // entries may not be typed as FeedEntry yet from mirror; we cast here safely
         mergeAndSet(entries as unknown as FeedEntry[])
         // Debug: surface a short sample of fetched history entries for diagnostics
-        try { console.debug('[events provider] fetched history entries sample', (entries ?? []).slice(0, 10)) } catch {}
       } catch (err) {
         setDegraded(true)
       } finally {
@@ -146,7 +145,6 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
           setDegraded(wasDegraded)
           mergeAndSet(entries as unknown as FeedEntry[])
           // Debug: sample of polled entries
-          try { console.debug('[events provider] polled history entries sample', (entries ?? []).slice(0, 10)) } catch {}
         } catch {
           setDegraded(true)
         } finally {
@@ -167,7 +165,6 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
       setDegraded(wasDegraded)
       mergeAndSet(entries as unknown as FeedEntry[])
       // Debug: sample of refetched entries for diagnostics
-      try { console.debug('[events provider] refetched history entries sample', (entries ?? []).slice(0, 10)) } catch {}
     } catch {
       setDegraded(true)
     } finally {
@@ -180,7 +177,6 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   const { events: liveEvents } = useLotteryEvents()
   useEffect(() => {
     if (!Array.isArray(liveEvents) || liveEvents.length === 0) return
-    try { console.debug('[events provider] merging live events sample', (liveEvents ?? []).slice(0, 10)) } catch {}
     // mergeAndSet will dedupe and prepend
     mergeAndSet(liveEvents)
   }, [liveEvents, mergeAndSet])

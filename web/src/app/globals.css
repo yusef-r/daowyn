@@ -344,6 +344,26 @@
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
+  color: var(--foreground);
+}
+
+/* Ensure SVG icons inside headings inherit the heading color for stronger contrast */
+.section-heading svg {
+  color: inherit;
+  stroke: currentColor;
+  fill: none;
+  opacity: 0.95;
+}
+
+/* Utility classes for panel headers/subheaders to raise contrast where needed */
+.panel-title {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.panel-subtitle {
+  color: var(--muted-foreground);
+  font-weight: 600;
 }
 
 /* Use subtle background accent instead of a yellow/strong left border.
@@ -439,8 +459,8 @@
   font-size: 36px;
   font-weight: 700;
   color: #0b0b0b; /* slightly softer than pure black */
-  /* subtle drop shadow + soft green glow (made a bit more visible) */
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 14px rgba(34, 197, 94, 0.14);
+  /* subtle drop shadow + soft green glow (muted) */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 14px rgba(34, 197, 94, 0.09);
   margin: 0;
   line-height: 1.05;
 }
@@ -466,7 +486,7 @@
 /* Dark-mode adjustments */
 .dark .site-title {
   color: #e6e6e6;
-  text-shadow: 0 0 10px rgba(34, 197, 94, 0.08);
+  text-shadow: 0 0 10px rgba(34, 197, 94, 0.05);
 }
 .dark .site-subtitle {
   color: #aaaaaa;

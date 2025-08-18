@@ -149,7 +149,7 @@ export default function WalletStatsCard() {
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
       <div className="p-4">
-        <h3 className="text-base font-semibold">Wallet Stats</h3>
+        <h3 className="text-base font-semibold section-heading panel-title">Wallet Stats</h3>
 
         <div className="mt-3">
           {/* TOTAL WINNINGS - primary metric */}

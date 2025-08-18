@@ -128,7 +128,7 @@ export default function StatusCard() {
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
       <div className="p-6 space-y-4">
         <div className="text-center">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">Prize Pool</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide panel-subtitle">Prize Pool</div>
           <div className="mt-1 text-4xl sm:text-5xl font-extrabold">
             {(netHBAR ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}{' '}
             <span className="text-lg font-semibold text-muted-foreground">HBAR</span>

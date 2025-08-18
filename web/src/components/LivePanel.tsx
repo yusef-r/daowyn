@@ -167,13 +167,8 @@ export default function LivePanel() {
         {/* Live Activity Feed */}
         <div className="section-accent live-section flex-1 flex flex-col min-h-0">
           <div className="flex h-full flex-col min-h-0">
-            <h4 className="text-sm font-semibold section-heading">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="opacity-90">
-                <path d="M3 12h3l3-9 4 18 3-12 4 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Live Activity Feed
-            </h4>
-            <p className="text-xs text-muted-foreground mt-1">Recent activity</p>
+            <h3 className="text-base font-semibold section-heading panel-title pl-2">Live Activity Feed</h3>
+            <p className="text-xs text-muted-foreground mt-1 panel-subtitle pl-2">Recent activity</p>
 
             <div className="feed-list flex flex-col flex-1 min-h-0">
               {recentActivity.length === 0 ? (

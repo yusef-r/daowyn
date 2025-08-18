@@ -105,7 +105,7 @@ export default function EnterCard() {
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
       <div className="p-4">
-        <h3 className="text-base font-semibold">Enter the Pool</h3>
+        <h3 className="text-base font-semibold section-heading panel-title">Enter the Pool</h3>
         <p className="text-sm text-muted-foreground">
           Add HBAR to the prize pool. Any overage is refunded or auto-credited.
         </p>
@@ -250,4 +250,5 @@ export default function EnterCard() {
     </div>
   )
 }
+
 

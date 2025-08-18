@@ -226,9 +226,9 @@ export default function useLotteryReads(): UseLotteryReadsResult {
   return {
     // raw on-chain
     owner: owner as `0x${string}` | undefined,
-
+    
     // readiness
-    isReadyForDraw,
+    isReadyForDraw: Boolean(snap.isReadyForDraw) || isReadyDerived,
     isReadyForDrawDerived,
     isReadyDerived,
     canDraw,

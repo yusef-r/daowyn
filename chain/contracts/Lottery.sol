@@ -21,6 +21,8 @@ contract Lottery {
     // The minimum balance required to lock the pool and make it ready for a draw.
     // Use tinybars (8 decimals) for all readiness math.
     uint256 public constant POOL_TARGET = 10 * 10**8; // 10 HBAR (tinybars)
+    // Minimum accepted entry per enter() (0.1 HBAR in tinybars).
+    uint256 public constant MIN_ENTRY = 1 * 10**7; // 0.1 HBAR (tinybars)
     
     // The protocol fee is a percentage. We define the rate here: 25 / 1000 = 2.5%.
     uint256 public constant FEE_NUMERATOR = 25;
@@ -47,7 +49,7 @@ contract Lottery {
     // Simple mutex for nonReentrant on enter()
     bool private locked;
     modifier nonReentrant() {
-        require(!locked, "HBET: Reentrant call");
+        require(!locked, "Reentrant call");
         locked = true;
         _;
         locked = false;
@@ -56,9 +58,13 @@ contract Lottery {
     // Manually track the participant count for efficient off-chain queries.
     uint256 public participantCount;
 
+    // Per-address stake (tinybars) and aggregate total stake used for weighted selection.
+    mapping(address => uint256) public stakes;
+    uint256 public totalStake;
+ 
     // Pending refunds credited for callers when immediate push fails or for contract callers.
     mapping(address => uint256) public pendingRefunds;
-
+ 
     // Track total pending refunds to exclude from readiness/payout math.
     uint256 public pendingRefundsTotal;
 
@@ -104,11 +110,11 @@ contract Lottery {
         uint256 preNetTiny = preTiny > pendingRefundsTotal ? (preTiny - pendingRefundsTotal) : 0;
  
         // Ensure the pool is currently accepting entries.
-        require(stage == Stage.Filling, "HBET: Not accepting entries right now.");
+        require(stage == Stage.Filling, "Not accepting entries right now.");
  
         // Checks (use tinybars so the final, filling deposit is allowed)
-        require(preNetTiny < POOL_TARGET, "HBET: The draw is ready and waiting to be triggered.");
-        require(msg.value > 0, "HBET: Entry must be greater than zero.");
+        require(preNetTiny < POOL_TARGET, "The draw is ready and waiting to be triggered.");
+        require(msg.value > 0, "Minimum entry is 0.1 HBAR.");
  
         // Compute remaining capacity in tinybars based on preNetTiny; clamp at zero.
         uint256 remainingTiny = preNetTiny < POOL_TARGET ? (POOL_TARGET - preNetTiny) : 0;
@@ -116,11 +122,19 @@ contract Lottery {
         // Determine how much to keep from this entry and the change to refund (tinybars).
         uint256 take = msg.value < remainingTiny ? msg.value : remainingTiny;
         uint256 change = msg.value - take;
+
+        // Enforce a minimum accepted entry size (take == 0 allowed when nothing is accepted).
+        require(take == 0 || take >= MIN_ENTRY, "Minimum entry is 0.1 HBAR.");
  
         // Effects: only count participant if we actually keep > 0
         if (take > 0) {
-            participants.push(payable(msg.sender));
-            participantCount++;
+            // Keep one participants[] entry per unique wallet; accumulate stake for weighting.
+            if (stakes[msg.sender] == 0) {
+                participants.push(payable(msg.sender));
+                participantCount++;
+            }
+            stakes[msg.sender] += take;
+            totalStake += take;
             emit EnteredPool(msg.sender, take, currentRound);
         }
  
@@ -195,21 +209,35 @@ contract Lottery {
         // Pre-check sync: ensure stage flips to Ready if net >= target
         syncReady();
         // 1. Check if the contract is ready for the draw and not already drawing.
-        require(isReadyForDraw(), "HBET: The draw is not ready to be triggered.");
-        require(_netBalance() >= POOL_TARGET, "HBET: Pool balance below target.");
-        require(participantCount > 0, "HBET: No participants");
+        require(isReadyForDraw(), "The draw is not ready to be triggered.");
+        require(_netBalance() >= POOL_TARGET, "Pool balance below target.");
+        require(participantCount > 0, "No participants");
         // Enforce explicit state machine readiness (must be in Ready stage).
-        require(stage == Stage.Ready, "HBET: Pool not in Ready stage.");
-        require(!isDrawing, "HBET: Draw is already in progress.");
+        require(stage == Stage.Ready, "Pool not in Ready stage.");
+        require(!isDrawing, "Draw is already in progress.");
   
         // 2. Lock the function to prevent re-entrancy.
         isDrawing = true;
         stage = Stage.Drawing;
   
-        // 3. Select a winner.
+        // 3. Select a winner (weighted by accepted stake).
         bytes32 seed = PRNG.getPseudorandomSeed();
-        uint256 randomIndex = uint256(seed) % participantCount;
-        address payable winner = participants[randomIndex];
+        require(totalStake > 0, "No stake to draw from.");
+        uint256 r = uint256(seed) % totalStake;
+        uint256 cumulative = 0;
+        address payable winner;
+        for (uint256 i = 0; i < participants.length; i++) {
+            address payable p = participants[i];
+            cumulative += stakes[p];
+            if (cumulative > r) {
+                winner = p;
+                break;
+            }
+        }
+        // Fallback (should not occur if totalStake matches stakes sum): pick first participant.
+        if (winner == address(0)) {
+            winner = participants[0];
+        }
   
         // 4. Perform the dynamic payout based on the contract's net balance.
         payWinnerAndFee(winner);
@@ -231,12 +259,12 @@ contract Lottery {
  
         // Securely pay the calculated protocol fee to the owner (tinybars).
         (bool successFee, ) = owner.call{value: feeAmountTiny}("");
-        require(successFee, "HBET: Failed to send protocol fee to owner.");
+        require(successFee, "Failed to send protocol fee to owner.");
          
         // Securely pay the winner their prize (tinybars).
         if (prizeAmountTiny > 0) {
             (bool successPrize, ) = winner.call{value: prizeAmountTiny}("");
-            require(successPrize, "HBET: Failed to send prize to winner.");
+            require(successPrize, "Failed to send prize to winner.");
         }
          
         emit WinnerPicked(winner, prizeAmountTiny, currentRound);
@@ -246,6 +274,13 @@ contract Lottery {
      * @dev Internal function to reset the lottery state after a draw.
      */
     function resetLottery() private {
+        // Clear per-address stakes and aggregate totalStake.
+        for (uint256 i = 0; i < participants.length; i++) {
+            address payable p = participants[i];
+            stakes[p] = 0;
+        }
+        totalStake = 0;
+
         // Reset the participants array for the next round.
         delete participants;
         participantCount = 0;
@@ -253,10 +288,10 @@ contract Lottery {
         // Release drawing lock and advance round. Readiness is derived by isReadyForDraw().
         isDrawing = false;
         stage = Stage.Filling;
-
+ 
         // Notify off-chain listeners that the round has been reset (before bumping to the next round).
         emit RoundReset(currentRound);
-
+ 
         // Advance to the next canonical round and notify listeners.
         currentRound++;
         emit RoundStarted(currentRound);

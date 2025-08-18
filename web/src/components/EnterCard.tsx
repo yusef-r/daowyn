@@ -65,11 +65,11 @@ export default function EnterCard() {
     onExpectedNetwork &&
     isFilling &&
     !disableAll &&
-    Number(amount || '0') > 0
+    Number(amount || '0') >= 0.1
 
   const refundPreview = useMemo(() => {
     const amt = Number(amount || '0')
-    if (!Number.isFinite(amt) || amt <= 0) return 0
+    if (!Number.isFinite(amt) || amt < 0.1) return 0
     const rem = Number(remainingHBAR || 0)
     const over = amt - rem
     return over > 0 ? over : 0
@@ -170,8 +170,8 @@ export default function EnterCard() {
               <input
                 type="number"
                 inputMode="decimal"
-                step="0.000001"
-                min="0"
+                step="0.1"
+                min="0.1"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-0 focus:border-primary"
@@ -180,6 +180,10 @@ export default function EnterCard() {
                 aria-label="HBAR amount to enter"
               />
             </label>
+
+            {Number(amount || '0') > 0 && Number(amount || '0') < 0.1 && (
+              <div className="text-xs text-red-700">Minimum entry: 0.1 HBAR</div>
+            )}
 
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div>

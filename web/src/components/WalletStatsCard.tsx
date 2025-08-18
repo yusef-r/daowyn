@@ -147,7 +147,7 @@ export default function WalletStatsCard() {
   const displayedWinnings = Math.max(totalWinnings, cachedWinnings ?? 0)
 
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+    <div className="rounded-lg border bg-card text-card-foreground shadow">
       <div className="p-4">
         <h3 className="text-base font-semibold section-heading panel-title">Wallet Stats</h3>
 

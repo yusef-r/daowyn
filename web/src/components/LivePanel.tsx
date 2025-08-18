@@ -163,7 +163,7 @@ export default function LivePanel() {
   }
 
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm h-full">
+    <div className="rounded-lg border bg-card text-card-foreground shadow h-full">
       <div className="p-3 space-y-3 h-full flex flex-col min-h-0">
         {/* Live Activity Feed */}
         <div className="section-accent live-section flex-1 flex flex-col min-h-0">

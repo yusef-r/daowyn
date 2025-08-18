@@ -125,7 +125,7 @@ export default function StatusCard() {
     : '0 8px 24px rgba(34,197,94,0.12), inset 0 0 0 1px rgba(255,255,255,0.6)'
  
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+    <div className="rounded-lg border bg-card text-card-foreground shadow">
       <div className="p-6 space-y-4">
         <div className="text-center">
           <div className="text-xs text-muted-foreground uppercase tracking-wide panel-subtitle">Prize Pool</div>

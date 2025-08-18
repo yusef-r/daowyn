@@ -103,7 +103,7 @@ export default function EnterCard() {
   }, [roundId, reset])
 
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+    <div className="rounded-lg border bg-card text-card-foreground shadow">
       <div className="p-4">
         <h3 className="text-base font-semibold section-heading panel-title">Enter the Pool</h3>
         <p className="text-sm text-muted-foreground">

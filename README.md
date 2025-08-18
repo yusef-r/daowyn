@@ -20,40 +20,34 @@ This product combines a simple, low-friction user experience with auditable rand
 - **Relay & mirror sync:** Lightweight relay for canonical snapshots and tx mapping.
 - **Fee model:** 2.5% protocol fee (on-chain).
 
-## Architecture — visual summary
+## Architecture (visual summary)
 
 ```mermaid
 flowchart LR
-  %% Lanes
-  subgraph Lane_User[User Journey]
-    Wallet[User Wallet]
-    UI[Frontend UI]
-  end
-  subgraph Lane_Onchain[On-chain]
-    Contract[Smart Contract]
-  end
-  subgraph Lane_Offchain[Off-chain / Automation]
-    Mirror[Mirror Node / Relay]
-    Keeper[Auto-Draw Keeper]
-  end
-
-  %% flow
-  Wallet <-->|connect & sign| UI
-  UI -->|1. submit signed tx| Contract
-  Contract -->|2. emit events / state| Mirror
-  Mirror -->|3. update UI state| UI
-  Mirror -->|4. pool ready signal| Keeper
-  Keeper -->|5. triggerDraw| Contract
-  Contract -->|6. WinnerPicked event| Mirror
-  Mirror -->|7. show result| UI
-
-  %% styling
-  classDef user fill:#e8f4ff,stroke:#369;
-  classDef onchain fill:#eefbea,stroke:#2a7;
-  classDef offchain fill:#f7f5ff,stroke:#75a;
-  class Wallet,UI user;
-  class Contract onchain;
-  class Mirror,Keeper offchain;
+    %% Process flow with technical depth
+    A["👤 User<br/>Connects Wallet"] 
+    B["💰 Smart Contract<br/>• Validates deposit<br/>• Auto-refunds excess<br/>• Stakes weighted by HBAR"]
+    C["📊 Mirror Node<br/>• Monitors events<br/>• Real-time state sync<br/>• Canonical snapshots"]
+    D["🤖 Auto-Draw Keeper<br/>• Detects pool filled<br/>• Triggers draw automatically<br/>• Zero manual ops"]
+    E["🎲 PRNG Draw<br/>• Hedera randomness<br/>• Stake-weighted selection<br/>• Provably fair"]
+    F["🏆 Winner Paid<br/>• Instant payout<br/>• New round starts<br/>• Full audit trail"]
+    
+    %% Main flow
+    A -->|Deposit HBAR| B
+    B -->|Events & state| C
+    C -->|Pool status| D
+    D -->|Trigger| E
+    E -->|Result| F
+    F -.->|New round| A
+    
+    %% Real-time feedback loop
+    C -.->|Live updates| A
+    
+    %% Styling
+    classDef process fill:#e8f4ff,stroke:#2196f3,stroke-width:2px,color:#000
+    classDef tech fill:#f0f8ff,stroke:#607d8b,stroke-width:1px,color:#000
+    
+    class A,B,C,D,E,F process
 ```
 
 ## How it works (high level)

@@ -6,46 +6,67 @@ A production-minded decentralized prize pool built on Hedera that delivers prova
 
 This product combines a simple, low-friction user experience with auditable randomness and a minimal server surface for canonical state. The result is a prize product that is easy for users to use, easy for operators to verify, and straightforward to audit.
 
-## Key features
+## Key Features
 
-- **Smart Vending Machine:** accepts variable HBAR entries, keeps only what is needed to reach the pool target, and automatically refunds the overage with a push-or-credit model (user protection).
-- **Two-stage draw:** Filling → Ready → Drawing lifecycle separates final deposits from payout to prevent race conditions and front-running.
-- **Verifiable randomness:** uses the Hedera PRNG precompile for a provably-fair seed used to select the winner.
-- **Frontend product UI:** dark/light mode, real-time pool stats, participant counts, and a clear deposit UX.
-- **Automated draws:** keeper system watches canonical state and triggers draws automatically when the pool is ready.
-- **Minimal relay + mirror sync:** lightweight server that stores canonical snapshots and transaction mappings to simplify verification.
-- **Production safety:** reentrancy guards, net-balance readiness checks, and graceful refund handling.
-- **Fee model:** protocol fee is 2.5% (implemented in contract).
+- **Fair & auditable draws:** Hedera PRNG + published tx IDs; anyone can verify results.
+- **Stake-weighted odds:** Your chance to win is proportional to HBAR contributed.
+- **Safe deposits:** “Smart vending” entry keeps only what’s needed and auto-refunds overage.
+- **Automated ops:** Keeper watches readiness and triggers draws; no manual intervention.
+- **Clear UX:** Real-time pool status, participant counts, light/dark modes.
+
+### Under the hood
+- **Race-condition safety:** Three-stage lifecycle (Filling → Ready → Drawing).
+- **Production safeguards:** Reentrancy guards, net-balance readiness, graceful refunds.
+- **Relay & mirror sync:** Lightweight relay for canonical snapshots and tx mapping.
+- **Fee model:** 2.5% protocol fee (on-chain).
 
 ## Architecture — visual summary
 
 ```mermaid
 flowchart LR
-  Wallets[Wallets]
-  Contract[Smart Vending Machine Contract]
-  Mirror[Relay and Mirror Sync]
-  Keeper[Auto-Draw Keeper]
-  UI[Frontend UI]
+  %% Lanes
+  subgraph Lane_User[User Journey]
+    Wallet[User Wallet]
+    UI[Frontend UI]
+  end
+  subgraph Lane_Onchain[On-chain]
+    Contract[Smart Contract]
+  end
+  subgraph Lane_Offchain[Off-chain / Automation]
+    Mirror[Mirror Node / Relay]
+    Keeper[Auto-Draw Keeper]
+  end
 
-  Wallets --> Contract
-  Contract --> Mirror
-  Mirror --> UI
-  Mirror --> Keeper
-  Keeper --> Contract
-  Contract --> UI
+  %% flow
+  Wallet <-->|connect & sign| UI
+  UI -->|1. submit signed tx| Contract
+  Contract -->|2. emit events / state| Mirror
+  Mirror -->|3. update UI state| UI
+  Mirror -->|4. pool ready signal| Keeper
+  Keeper -->|5. triggerDraw()| Contract
+  Contract -->|6. WinnerPicked event| Mirror
+  Mirror -->|7. show result| UI
+
+  %% styling
+  classDef user fill:#e8f4ff,stroke:#369;
+  classDef onchain fill:#eefbea,stroke:#2a7;
+  classDef offchain fill:#f7f5ff,stroke:#75a;
+  class Wallet,UI user;
+  class Contract onchain;
+  class Mirror,Keeper offchain;
 ```
 
 ## How it works (high level)
 
-- Entry: Users deposit HBAR via the UI or directly to the contract. The contract acts like a Smart Vending Machine: it accepts variable amounts, keeps only what is required to fill the pool target, and refunds any overage either immediately or as a credited balance for later withdrawal. See the entry logic in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:1). Each wallet's chance to win is proportional to the amount it contributed in that round — for example, a wallet that contributed 5 HBAR in a 10 HBAR pool has a 50% chance to be selected.
+- **Entry:** Users deposit HBAR via the UI or directly to the contract. The contract acts like a Smart Vending Machine: it accepts variable amounts, keeps only what is required to fill the pool target, and refunds any overage either immediately or as a credited balance for later withdrawal. See the entry logic in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:1). Each wallet's chance to win is proportional to the amount it contributed in that round — for example, a wallet that contributed 5 HBAR in a 10 HBAR pool has a 50% chance to be selected.
  
-- Readiness: The contract calculates a net balance that excludes pending refunds; when net balance >= pool target the contract flips to Ready and emits PoolFilled. The keeper watches the relay/mirror for that canonical snapshot and initiates the draw.
+- **Readiness:** The contract calculates a net balance that excludes pending refunds; when net balance >= pool target the contract flips to Ready and emits PoolFilled. The keeper watches the relay/mirror for that canonical snapshot and initiates the draw.
 
-- Draw: The keeper calls the contract trigger function, the contract requests a bytes32 seed from the Hedera PRNG precompile, computes the winning index from that seed, and pays the winner and protocol fee. See the PRNG call and selection in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:211).
+- **Draw:** The keeper calls the contract trigger function, the contract requests a bytes32 seed from the Hedera PRNG precompile, computes the winning index from that seed, and pays the winner and protocol fee. See the PRNG call and selection in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:211).
 
-- Verification: The draw transaction ID and the relay snapshot provide everything needed to independently verify the winner (see Verification section below).
+- **Verification:** The draw transaction ID and the relay snapshot provide everything needed to independently verify the winner (see Verification section below).
 
-## How to run locally (minimal)
+## How to run locally
 
 Prerequisites: Node.js (16+), npm. Commands assume you are at the repository root.
 
@@ -66,13 +87,12 @@ npx hardhat run scripts/deploy.ts --network localhost
 ```bash
 cd ../web
 npm install
-# create .env.local with your network and keys (see web/.env.local for example)
+# create .env.local with your network and keys (see web/.env.local.example for example)
 npm run dev
 ```
 
-Developer notes: contract source is at [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:1); keeper and auto-draw server live under [`web/src/server/autoDraw.ts`](web/src/server/autoDraw.ts:1); mirror sync helpers in [`web/src/lib/mirror.ts`](web/src/lib/mirror.ts:1); live UI components under [`web/src/components/LivePanel.tsx`](web/src/components/LivePanel.tsx:1).
 
-## Verification — how to independently verify a draw
+## Verification - how to independently verify a draw
 
 1. Obtain the draw transaction ID (TXID). The UI surfaces this after a draw, or it can be fetched from a Hedera explorer.
 
@@ -80,13 +100,11 @@ Developer notes: contract source is at [`chain/contracts/Lottery.sol`](chain/con
 
 3. Extract the PRNG seed used in the draw. The contract requests a bytes32 seed from the Hedera PRNG precompile during triggerDraw; that returned seed is visible in the transaction trace or captured by the relay. See the seed request and selection logic in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:224).
 
-4. Recompute the winner:
-
-- Convert the seed to an unsigned integer, compute r = uint256(seed) % totalStake, then iterate the recorded participant list summing each participant's stake. The winner is the first participant where the running cumulative stake exceeds r. This weighted-selection algorithm (by stake) is implemented in the contract's triggerDraw logic: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:226).
+4. Recompute the winner. Convert the seed to an unsigned integer, compute r = uint256(seed) % totalStake, then iterate the recorded participant list summing each participant's stake. The winner is the first participant where the running cumulative stake exceeds r. This weighted-selection algorithm (by stake) is implemented in the contract's triggerDraw logic: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:226).
 
 5. Confirm that the recomputed participant address matches the WinnerPicked event recorded in the transaction logs.
 
-Notes: the provided relay is built to make verification simple for non-technical reviewers — it preserves round snapshots and maps tx IDs to the recorded seed and participant list so anyone can re-run the index calculation and confirm the result.
+Notes: the provided relay is built to make verification simple for non-technical reviewers. It preserves round snapshots and maps tx IDs to the recorded seed and participant list so anyone can re-run the index calculation and confirm the result.
 
 ## My role and contributions
 

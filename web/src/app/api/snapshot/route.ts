@@ -55,7 +55,7 @@ let __forceFallback = (rpcClient.chain?.id === HEDERA_CHAIN_ID) || false;
 
 // Telemetry counters
 let throttleDenialsCount = 0;
-export function __getSnapshotCounters() {
+function __getSnapshotCounters() {
   return {
     throttleDenialsCount,
     lastGoodBlock: lastGood?.forBlock,

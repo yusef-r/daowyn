@@ -55,11 +55,11 @@ flowchart LR
 
 ## How it works (high level)
 
-- **Entry:** Users deposit HBAR via the UI or directly to the contract. The contract acts like a Smart Vending Machine: it accepts variable amounts, keeps only what is required to fill the pool target, and refunds any overage either immediately or as a credited balance for later withdrawal. See the entry logic in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:1). Each wallet's chance to win is proportional to the amount it contributed in that round — for example, a wallet that contributed 5 HBAR in a 10 HBAR pool has a 50% chance to be selected.
+- **Entry:** Users deposit HBAR via the UI or directly to the contract. The contract acts like a Smart Vending Machine: it accepts variable amounts, keeps only what is required to fill the pool target, and refunds any overage either immediately or as a credited balance for later withdrawal. See the entry logic in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol). Each wallet's chance to win is proportional to the amount it contributed in that round — for example, a wallet that contributed 5 HBAR in a 10 HBAR pool has a 50% chance to be selected.
  
 - **Readiness:** The contract calculates a net balance that excludes pending refunds; when net balance >= pool target the contract flips to Ready and emits PoolFilled. The keeper watches the relay/mirror for that canonical snapshot and initiates the draw.
 
-- **Draw:** The keeper calls the contract trigger function, the contract requests a bytes32 seed from the Hedera PRNG precompile, computes the winning index from that seed, and pays the winner and protocol fee. See the PRNG call and selection in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:211).
+- **Draw:** The keeper calls the contract trigger function, the contract requests a bytes32 seed from the Hedera PRNG precompile, computes the winning index from that seed, and pays the winner and protocol fee. See the PRNG call and selection in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol).
 
 - **Verification:** The draw transaction ID and the relay snapshot provide everything needed to independently verify the winner (see Verification section below).
 
@@ -93,11 +93,11 @@ npm run dev
 
 1. Obtain the draw transaction ID (TXID). The UI surfaces this after a draw, or it can be fetched from a Hedera explorer.
 
-2. Retrieve the canonical participant snapshot for that round from the project's relay/mirror. The repo includes a snapshot API path used by the UI: [`web/src/app/api/snapshot/route.ts`](web/src/app/api/snapshot/route.ts:1).
+2. Retrieve the canonical participant snapshot for that round from the project's relay/mirror. The repo includes a snapshot API path used by the UI: [`web/src/app/api/snapshot/route.ts`](web/src/app/api/snapshot/route.ts).
 
-3. Extract the PRNG seed used in the draw. The contract requests a bytes32 seed from the Hedera PRNG precompile during triggerDraw; that returned seed is visible in the transaction trace or captured by the relay. See the seed request and selection logic in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:224).
+3. Extract the PRNG seed used in the draw. The contract requests a bytes32 seed from the Hedera PRNG precompile during triggerDraw; that returned seed is visible in the transaction trace or captured by the relay. See the seed request and selection logic in the contract: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol).
 
-4. Recompute the winner. Convert the seed to an unsigned integer, compute r = uint256(seed) % totalStake, then iterate the recorded participant list summing each participant's stake. The winner is the first participant where the running cumulative stake exceeds r. This weighted-selection algorithm (by stake) is implemented in the contract's triggerDraw logic: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:226).
+4. Recompute the winner. Convert the seed to an unsigned integer, compute r = uint256(seed) % totalStake, then iterate the recorded participant list summing each participant's stake. The winner is the first participant where the running cumulative stake exceeds r. This weighted-selection algorithm (by stake) is implemented in the contract's triggerDraw logic: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol).
 
 5. Confirm that the recomputed participant address matches the WinnerPicked event recorded in the transaction logs.
 
@@ -109,7 +109,7 @@ Notes: the provided relay is built to make verification simple for non-technical
   - I conceived and built the entire MVP end-to-end — including the smart contract, frontend UI, backend relay, and auto-draw keeper — to demonstrate a provably fair decentralized prize pool on Hedera.
 
 - **Architecture & System Design**
-  - I designed a two-stage draw lifecycle to eliminate race conditions.
+  - I designed a three-stage lifecycle to eliminate race conditions.
   - I integrated Hedera's PRNG system contract to enable on-chain verifiable randomness.
   - I built the "Smart Vending Machine" entry mechanism that dynamically handles pool fill logic and auto-refunds any overage.
 
@@ -132,32 +132,32 @@ Notes: the provided relay is built to make verification simple for non-technical
 ## Where to look in the codebase
 
 - **Core contract**
-  - Main implementation and draw logic: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol:1)
-  - Hardhat config & deployment helpers: [`chain/hardhat.config.ts`](chain/hardhat.config.ts:1), [`chain/scripts/deploy.ts`](chain/scripts/deploy.ts:1)
-  - Compiled ABI (used by the web client): [`web/src/abi/Lottery.json`](web/src/abi/Lottery.json:1)
+  - Main implementation and draw logic: [`chain/contracts/Lottery.sol`](chain/contracts/Lottery.sol)
+  - Hardhat config & deployment helpers: [`chain/hardhat.config.ts`](chain/hardhat.config.ts), [`chain/scripts/deploy.ts`](chain/scripts/deploy.ts)
+  - Compiled ABI (used by the web client): [`web/src/abi/Lottery.json`](web/src/abi/Lottery.json)
 
 - **Frontend (UI & components)**
-  - Live pool panel and realtime UI: [`web/src/components/LivePanel.tsx`](web/src/components/LivePanel.tsx:1)
-  - Entry form / deposit flow: [`web/src/components/EnterCard.tsx`](web/src/components/EnterCard.tsx:1)
-  - Winner display & event feed: [`web/src/components/WinnerCard.tsx`](web/src/components/WinnerCard.tsx:1), [`web/src/components/ActivityFeed.tsx`](web/src/components/ActivityFeed.tsx:1)
-  - Wallet and stats components: [`web/src/components/WalletStatsCard.tsx`](web/src/components/WalletStatsCard.tsx:1), [`web/src/components/WalletButton.tsx`](web/src/components/WalletButton.tsx:1)
+  - Live activity panel: [`web/src/components/LivePanel.tsx`](web/src/components/LivePanel.tsx)
+  - Entry form / deposit flow: [`web/src/components/EnterCard.tsx`](web/src/components/EnterCard.tsx)
+  - Pool Status & Prize Info : [`web/src/components/StatusCard.tsx`](web/src/components/StatusCard.tsx)
+  - Wallet and stats components: [`web/src/components/WalletStatsCard.tsx`](web/src/components/WalletStatsCard.tsx), [`web/src/components/WalletButton.tsx`](web/src/components/WalletButton.tsx)
 
 - **Frontend state & hooks**
-  - Shared context for round/participant data: [`web/src/context/LotteryDataContext.tsx`](web/src/context/LotteryDataContext.tsx:1)
-  - Hooks for reading on-chain state and snapshots: [`web/src/hooks/useLotteryReads.ts`](web/src/hooks/useLotteryReads.ts:1), [`web/src/hooks/useLotterySnapshot.ts`](web/src/hooks/useLotterySnapshot.ts:1)
-  - Hooks for submitting entries and triggering transactions: [`web/src/hooks/useLotteryWrites.ts`](web/src/hooks/useLotteryWrites.ts:1)
-  - Event subscriptions used by the UI: [`web/src/hooks/useLotteryEvents.ts`](web/src/hooks/useLotteryEvents.ts:1)
+  - Shared context for round/participant data: [`web/src/context/LotteryDataContext.tsx`](web/src/context/LotteryDataContext.tsx)
+  - Hooks for reading on-chain state and snapshots: [`web/src/hooks/useLotteryReads.ts`](web/src/hooks/useLotteryReads.ts), [`web/src/hooks/useLotterySnapshot.ts`](web/src/hooks/useLotterySnapshot.ts)
+  - Hooks for submitting entries and triggering transactions: [`web/src/hooks/useLotteryWrites.ts`](web/src/hooks/useLotteryWrites.ts)
+  - Event subscriptions used by the UI: [`web/src/hooks/useLotteryEvents.ts`](web/src/hooks/useLotteryEvents.ts)
 
 - **Libs / integrations**
-  - Mirror/relay helpers and snapshot mapping: [`web/src/lib/mirror.ts`](web/src/lib/mirror.ts:1)
-  - Lightweight on-chain contract wrapper used by the client: [`web/src/lib/contracts/lottery.ts`](web/src/lib/contracts/lottery.ts:1)
-  - Hedera utilities and config: [`web/src/lib/hedera.ts`](web/src/lib/hedera.ts:1)
-  - Appkit / wallet initialization: [`web/src/lib/appkit-init.client.ts`](web/src/lib/appkit-init.client.ts:1)
+  - Mirror/relay helpers and snapshot mapping: [`web/src/lib/mirror.ts`](web/src/lib/mirror.ts)
+  - Lightweight on-chain contract wrapper used by the client: [`web/src/lib/contracts/lottery.ts`](web/src/lib/contracts/lottery.ts)
+  - Hedera utilities and config: [`web/src/lib/hedera.ts`](web/src/lib/hedera.ts)
+  - Appkit / wallet initialization: [`web/src/lib/appkit-init.client.ts`](web/src/lib/appkit-init.client.ts)
 
 - **Backend / automation (keeper & relay)**
-  - Auto-draw keeper & relay that watches canonical snapshots and triggers draws: [`web/src/server/autoDraw.ts`](web/src/server/autoDraw.ts:1)
-  - Minimal RPC/relay endpoints used by the UI and keeper: [`web/src/server/rpc.ts`](web/src/server/rpc.ts:1)
-  - Snapshot API used for verifiable participant lists: [`web/src/app/api/snapshot/route.ts`](web/src/app/api/snapshot/route.ts:1)
+  - Auto-draw keeper & relay that watches canonical snapshots and triggers draws: [`web/src/server/autoDraw.ts`](web/src/server/autoDraw.ts)
+  - Minimal RPC/relay endpoints used by the UI and keeper: [`web/src/server/rpc.ts`](web/src/server/rpc.ts)
+  - Snapshot API used for verifiable participant lists: [`web/src/app/api/snapshot/route.ts`](web/src/app/api/snapshot/route.ts)
 
 ## License
 

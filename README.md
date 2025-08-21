@@ -73,10 +73,8 @@ Prerequisites: Node.js (16+), npm. Commands assume you are at the repository roo
 cd chain
 npm install
 npm run compile    # compiles contracts and syncs ABI
-# optional: run a local Hardhat node
-npx hardhat node
-# optional: deploy to local node
-npx hardhat run scripts/deploy.ts --network localhost
+npx hardhat run scripts/deploy.ts --network hedera_testnet    # deploys contract to Hedera Testnet
+# be sure to copy the contract address into your web/.env.local
 ```
 
 2) Web (frontend + keeper/relay)
